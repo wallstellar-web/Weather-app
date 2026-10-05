@@ -3,15 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<style>body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
-</head>
-<body>
 <title>Rainwatch Field &amp; Trail</title>
-<meta name="theme-color" content="#1f5fbf">
+<meta name="theme-color" content="#edf1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1512" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<meta name="description" content="Multi-model rain forecasts with IMD alerts, crop disease risk, trail mud, river crossings and voice briefings.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rainwatch">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</head>
+<body>
 <style>
 /* Layout: single mobile-first column. Status first, then hourly rain and radar, then the panels for the chosen mode (Hiker / Farm / Off-road), then alerts, models, IMD, week and ground truth */
 :root{
@@ -62,6 +72,9 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 
 .banner{border-radius:var(--r);padding:10px 14px;font-size:.92rem;display:flex;gap:10px;align-items:flex-start}
 .banner.sample{background:var(--warn-soft);color:var(--ink);border:1px solid var(--warn)}
+.banner.install{background:var(--rain-soft);border:1px solid var(--rain);align-items:center}
+.banner.install .grow{flex:1;min-width:0}
+.banner.install .x{border:0;background:none;color:var(--muted);font-size:1.3rem;line-height:1;padding:4px 6px}
 .banner.alert{background:var(--rain);color:var(--rain-ink);font-weight:600;animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{50%{filter:brightness(1.12)}}
 @media (prefers-reduced-motion:reduce){.banner.alert{animation:none}}
@@ -222,6 +235,12 @@ footer a{color:inherit}
     </div>
   </header>
 
+  <div id="install-banner" class="banner install" hidden>
+    <img src="icon-192.png" alt="" width="40" height="40" style="border-radius:9px;flex:none" onerror="this.remove()">
+    <div class="grow"><b>Install Rainwatch</b><br><span class="note" id="install-text">Opens full screen from its own icon and works without signal.</span></div>
+    <button class="btn primary small" id="install-btn">Install</button>
+    <button class="x" id="install-x" aria-label="Not now">×</button>
+  </div>
   <div id="sample-banner" class="banner sample" hidden></div>
   <div id="alert-banner" class="banner alert" role="alert" hidden></div>
 
@@ -352,7 +371,7 @@ footer a{color:inherit}
         <select id="thr"><option value="40">40%</option><option value="50">50%</option><option value="60" selected>60%</option><option value="75">75%</option></select></div>
     </div>
     <div class="row"><button class="btn primary" id="notify-btn">Turn on rain alerts</button><button class="btn" id="test-btn">Send test alert</button></div>
-    <p class="note">Rainwatch checks every 10 minutes and alerts you once per rain spell. Keep this page open (a pinned tab or home-screen app) so the checks keep running.</p>
+    <p class="note" id="alert-note">Rainwatch checks every 10 minutes and alerts you once per rain spell. Keep this page open (a pinned tab or home-screen app) so the checks keep running.</p>
     <div class="sub-block">
       <h3>Voice</h3>
       <div class="grid2">
@@ -421,6 +440,8 @@ const MODELS = [
 const WET = 0.2, H = 3600e3, M = 60e3, IST = 19800;
 const SAMPLE_PLACE = {name:'Sample estate · Madikeri, Kodagu', lat:12.4244, lon:75.7382, cc:'IN', district:'Kodagu', state:'Karnataka'};
 const $ = id => document.getElementById(id);
+const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 
 // ---------- storage (best-effort) ----------
 const store = {
@@ -1389,7 +1410,7 @@ function handleCommand(t){
 let recog = null;
 function listen(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR){ toast('Voice questions need Chrome on Android or a desktop browser. Use Brief me instead.'); return; }
+  if (!SR){ toast(IOS ? 'Voice questions are not available in this iPhone browser. Tap Brief me for a spoken summary.' : 'Voice questions need Chrome on Android or a desktop browser. Use Brief me instead.'); return; }
   if (recog){ recog.stop(); return; }
   recog = new SR(); recog.lang = 'en-IN'; recog.interimResults = false; recog.maxAlternatives = 1;
   const b = $('ask-btn'); b.classList.add('listening'); $('heard').textContent = 'Listening…';
@@ -1406,7 +1427,7 @@ function renderAlerts(){
   const btn = $('notify-btn');
   if (!notifSupported()){
     btn.textContent = state.settings.notify ? 'In-app alerts on' : 'Turn on in-app alerts';
-    $('notify-state').textContent = 'Phone notifications unavailable here';
+    $('notify-state').textContent = IOS ? 'Add to Home Screen first' : 'Phone notifications unavailable here';
   } else {
     const perm = Notification.permission;
     btn.textContent = state.settings.notify ? 'Turn off rain alerts' : 'Turn on rain alerts';
@@ -1452,11 +1473,17 @@ function beep(){
       g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+off+0.2); o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime+off); o.stop(audioCtx.currentTime+off+0.22); });
   }catch(e){}
 }
+// Phone notifications go through the offline worker when installed (required on Android), else the page.
+async function notify(title, body){
+  if (!notifSupported() || Notification.permission !== 'granted') return false;
+  const opts = {body, tag:'rainwatch', renotify:true, icon:'icon-192.png', badge:'badge-96.png', vibrate:[200,100,200]};
+  try{ const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+       if (reg){ await reg.showNotification(title, opts); return true; } }catch(e){}
+  try{ new Notification(title, opts); return true; }catch(e){ return false; }
+}
 function fire(title, body, spoken){
   beep(); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
-  if (notifSupported() && Notification.permission === 'granted'){
-    try{ new Notification(title, {body, tag:'rainwatch', renotify:true}); }catch(e){ toast(title); }
-  } else toast(title);
+  notify(title, body).then(ok => { if (!ok) toast(title); });
   if (state.settings.voiceAlerts) setTimeout(() => speak((state.settings.callMe ? state.settings.callMe + ', ' : '') + (spoken || body)), 700);
 }
 
@@ -1724,6 +1751,33 @@ setInterval(() => { if (state.data) render(); }, M);
 setInterval(() => { if (!state.sample && state.current) load(); else loadRadar(); }, 10*M);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.data && !state.sample && Date.now() - state.data.fetched > 10*M) load(); });
 window.addEventListener('resize', () => { clearTimeout(drawRadar.t); drawRadar.t = setTimeout(drawRadar, 300); });
+
+// ---------- install as an app ----------
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installEvt = null;
+function showInstall(ios){
+  if (isStandalone() || window.top !== window) return;
+  if (store.get('installSnooze', 0) > Date.now()) return;
+  $('install-banner').hidden = false;
+  if (ios){ $('install-text').textContent = 'In Safari, tap Share (the square with an arrow), then "Add to Home Screen". It opens full screen from its own icon and can send rain alerts.'; $('install-btn').hidden = true; }
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; showInstall(false); });
+window.addEventListener('appinstalled', () => { $('install-banner').hidden = true; installEvt = null; toast('Rainwatch installed. Open it from your home screen.'); });
+$('install-btn').onclick = async () => {
+  if (!installEvt){ toast('Use your browser menu, then "Install app" or "Add to Home screen".'); return; }
+  installEvt.prompt(); try{ await installEvt.userChoice; }catch(e){}
+  installEvt = null; $('install-banner').hidden = true;
+};
+$('install-x').onclick = () => { $('install-banner').hidden = true; store.set('installSnooze', Date.now() + 14*86400e3); };
+if (IOS && !isStandalone()) showInstall(true);
+if (IOS) $('alert-note').textContent = STANDALONE
+  ? 'On iPhone, Rainwatch can check for rain and alert you only while it is open on screen; iOS pauses web apps in the background. Open it before heading out and leave it open on the dashboard or trail.'
+  : 'On iPhone, rain alerts need Rainwatch on your Home Screen. In Safari tap Share, then "Add to Home Screen", open it from the new icon, then turn alerts on.';
+
+// Home-screen shortcuts open straight into a mode (#farm, #hike, #off)
+function modeFromHash(){ const h = location.hash.slice(1); if (['farm','hike','off'].includes(h)) state.mode = h; }
+modeFromHash();
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (['farm','hike','off'].includes(h)) setMode(h); });
 
 setMode(state.mode);
 renderChips(); renderLog();
