@@ -1,0 +1,1739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<title>Rainwatch Field &amp; Trail</title>
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: single mobile-first column. Status first, then hourly rain and radar, then the panels for the chosen mode (Hiker / Farm / Off-road), then alerts, models, IMD, week and ground truth */
+:root{
+  --bg:#edf1ec; --surface:#ffffff; --sunken:#f5f8f4; --ink:#16221c; --muted:#56675d; --line:#d3dcd4;
+  --rain:#1f5fbf; --rain-ink:#ffffff; --rain-soft:#dbe6f7; --rain-mid:#8fb0e3;
+  --ok:#2c7a4b; --ok-soft:#dcefe2; --warn:#a96a10; --warn-soft:#f8ead2; --bad:#b3261e; --bad-soft:#f7dcd9;
+  --wy:#7d6200; --wy-bg:#fff4c2; --wo:#b04a05; --wo-bg:#ffe6cf; --wr:#b3261e; --wr-bg:#f7dcd9; --wg:#2c7a4b; --wg-bg:#dcefe2;
+  --mud1:#c9b48a; --mud2:#8a6a3b; --map-filter:none;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-data:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1512; --surface:#16201b; --sunken:#121b16; --ink:#e4ece6; --muted:#97a89e; --line:#2a3730;
+  --rain:#6ea8ff; --rain-ink:#0b1626; --rain-soft:#18283f; --rain-mid:#3b5f93;
+  --ok:#5fc48c; --ok-soft:#173225; --warn:#e6a94a; --warn-soft:#3a2c14; --bad:#f2786d; --bad-soft:#3d1c19;
+  --wy:#f1d25a; --wy-bg:#352d0c; --wo:#f7a45f; --wo-bg:#3b240f; --wr:#f2786d; --wr-bg:#3d1c19; --wg:#5fc48c; --wg-bg:#173225;
+  --mud1:#6d5c3e; --mud2:#b08a52; --map-filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1512; --surface:#16201b; --sunken:#121b16; --ink:#e4ece6; --muted:#97a89e; --line:#2a3730;
+  --rain:#6ea8ff; --rain-ink:#0b1626; --rain-soft:#18283f; --rain-mid:#3b5f93;
+  --ok:#5fc48c; --ok-soft:#173225; --warn:#e6a94a; --warn-soft:#3a2c14; --bad:#f2786d; --bad-soft:#3d1c19;
+  --wy:#f1d25a; --wy-bg:#352d0c; --wo:#f7a45f; --wo-bg:#3b240f; --wr:#f2786d; --wr-bg:#3d1c19; --wg:#5fc48c; --wg-bg:#173225;
+  --mud1:#6d5c3e; --mud2:#b08a52; --map-filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);padding-inline:16px;padding-block:12px 40px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:14px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:.01em}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+.eyebrow{font:600 .72rem/1.2 var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.num{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--rain);outline-offset:2px}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+.brand h1{font-size:1.5rem;font-weight:700;line-height:1}
+.brand small{display:block;font:500 .78rem var(--f-body);color:var(--muted);margin-top:2px}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:999px;font-weight:600;font-size:.88rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+.banner{border-radius:var(--r);padding:10px 14px;font-size:.92rem;display:flex;gap:10px;align-items:flex-start}
+.banner.sample{background:var(--warn-soft);color:var(--ink);border:1px solid var(--warn)}
+.banner.alert{background:var(--rain);color:var(--rain-ink);font-weight:600;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{filter:brightness(1.12)}}
+@media (prefers-reduced-motion:reduce){.banner.alert{animation:none}}
+
+.place{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row input[type=search],.row input[type=url],.row input[type=text]{flex:1 1 180px;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunken)}
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:10px;font-weight:600;font-size:.92rem;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--rain);border-color:var(--rain);color:var(--rain-ink)}
+.btn.small{padding:6px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--sunken);border-radius:999px;padding:4px 10px;font-size:.85rem;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-current="true"],.chip[aria-pressed="true"]{border-color:var(--rain);background:var(--rain-soft)}
+button.chip{font-weight:600}
+.chip .x{border:0;background:none;padding:0 2px;color:var(--muted);font-size:1rem;line-height:1}
+.results{display:grid;gap:4px}
+.results button{text-align:left;border:1px solid var(--line);background:var(--sunken);border-radius:8px;padding:8px 10px}
+
+.status{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.status-main{display:grid;grid-template-columns:1fr auto;gap:12px;padding:18px 18px 14px;align-items:end}
+.status-main > div{min-width:0}
+.status h2.state{font-size:clamp(2rem,9vw,3rem);line-height:.95;font-weight:700}
+.status .sub{margin-top:8px;color:var(--muted);font-size:.98rem}
+.temp{text-align:right}
+.temp .big{font:700 clamp(2.6rem,12vw,3.6rem)/.9 var(--f-display)}
+.temp .big sup{font-size:.45em;vertical-align:.9em;margin-left:2px}
+.temp .feels{font-size:.85rem;color:var(--muted)}
+.status.wet{border-color:var(--rain)}
+.status.wet .status-main{background:var(--rain-soft)}
+.meter-row{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.meter{padding:10px 12px;border-right:1px solid var(--line);min-width:0}
+.meter:last-child{border-right:0}
+.meter b{display:block;font:600 1.05rem var(--f-data);font-variant-numeric:tabular-nums}
+.meter span{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+@media (max-width:440px){.meter-row{grid-template-columns:repeat(2,1fr)}.meter:nth-child(2){border-right:0}.meter:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+.voice-row{display:flex;gap:8px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--line);align-items:center}
+.voice-row .heard{font-size:.85rem;color:var(--muted);flex:1 1 140px;min-width:0}
+.btn.listening{background:var(--bad);border-color:var(--bad);color:#fff}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:12px;min-width:0}
+.card > *,#crops > *,.crop > *{min-width:0}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sub-block{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.note{font-size:.82rem;color:var(--muted)}
+p.note{margin:0}
+
+.strip{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;align-items:end}
+.hr{display:grid;gap:4px;justify-items:center;min-width:0}
+.bar-box{height:96px;width:100%;display:flex;align-items:flex-end;background:var(--sunken);border-radius:6px;overflow:hidden}
+.bar{width:100%;background:var(--rain);border-radius:4px 4px 0 0}
+.bar.lo{background:var(--rain-mid)}
+.hr .p{font:500 .7rem var(--f-data)}
+.hr .t{font-size:.68rem;color:var(--muted)}
+.hr.now .t{color:var(--ink);font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+.radar{position:relative;height:280px;border-radius:10px;overflow:hidden;background:var(--sunken);border:1px solid var(--line)}
+.radar .layer{position:absolute;inset:0}
+.radar .layer img{position:absolute;width:256px;height:256px;max-width:none;user-select:none}
+.radar .base img{filter:var(--map-filter)}
+.radar .frame img{opacity:.75}
+.radar .pin{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--bad);border:2px solid #fff;box-shadow:0 0 0 2px var(--bad)}
+.radar .ctl{position:absolute;right:8px;top:8px;display:grid;gap:6px}
+.radar .ctl button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.radar .stamp{position:absolute;left:8px;bottom:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:500 .78rem var(--f-data)}
+.radar .fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;font-size:.9rem;color:var(--muted);background:var(--sunken)}
+
+.field{display:grid;gap:4px}
+.field label{font-size:.85rem;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2 > *{min-width:0}
+select,input[type=number],input[type=datetime-local]{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunken);width:100%;min-width:0}
+.toggle{display:flex;gap:8px;align-items:center;font-size:.92rem}
+
+.advice{display:grid;gap:8px}
+.tip{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px 12px;border-radius:10px;background:var(--sunken);border-left:4px solid var(--line)}
+.tip.ok{border-left-color:var(--ok)} .tip.warn{border-left-color:var(--warn)} .tip.bad{border-left-color:var(--bad)} .tip.info{border-left-color:var(--rain)}
+.tip .tag{font:700 .68rem var(--f-body);text-transform:uppercase;letter-spacing:.08em;padding:3px 7px;border-radius:5px;white-space:nowrap}
+.tip.ok .tag{background:var(--ok-soft);color:var(--ok)} .tip.warn .tag{background:var(--warn-soft);color:var(--warn)} .tip.bad .tag{background:var(--bad-soft);color:var(--bad)} .tip.info .tag{background:var(--rain-soft);color:var(--rain)}
+.tip p{margin:0;font-size:.95rem}
+
+.gauge{display:grid;gap:6px}
+.gauge-track{position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--ok-soft),var(--mud1) 55%,var(--mud2));border:1px solid var(--line)}
+.gauge-dot{position:absolute;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:var(--ink);border:3px solid var(--surface)}
+.gauge-scale{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted)}
+.verdict{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.verdict b{font:700 1.5rem/1 var(--f-display)}
+.lvl{display:inline-block;font:700 .72rem var(--f-body);text-transform:uppercase;letter-spacing:.07em;padding:3px 8px;border-radius:6px}
+.lvl.ok{background:var(--ok-soft);color:var(--ok)} .lvl.warn{background:var(--warn-soft);color:var(--warn)} .lvl.bad{background:var(--bad-soft);color:var(--bad)} .lvl.na{background:var(--sunken);color:var(--muted)}
+.spark{width:100%;height:46px;display:block}
+
+.table-box{overflow-x:auto;margin-inline:-4px}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+.wide{min-width:480px}
+th{font:600 .7rem var(--f-body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.mname{font-weight:700} .morg{display:block;font-size:.78rem;color:var(--muted)}
+.trust{display:inline-flex;align-items:center;gap:6px}
+.trust i{display:inline-block;height:6px;border-radius:3px;background:var(--rain)}
+.pill{display:inline-block;font:600 .75rem var(--f-body);padding:2px 8px;border-radius:999px}
+.pill.agree{background:var(--ok-soft);color:var(--ok)} .pill.differ{background:var(--warn-soft);color:var(--warn)} .pill.na{background:var(--sunken);color:var(--muted)}
+tr.consensus td{background:var(--rain-soft);font-weight:700}
+.flag{display:inline-block;font:700 .68rem var(--f-body);padding:1px 6px;border-radius:5px;margin:1px 2px 1px 0;background:var(--warn-soft);color:var(--warn)}
+.flag.bad{background:var(--bad-soft);color:var(--bad)}
+
+.crop{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;background:var(--sunken)}
+.crop-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.crop-head select{width:auto;max-width:100%;background:var(--surface)}
+.dz{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 0;border-top:1px solid var(--line)}
+.dz:first-of-type{border-top:0}
+.dz .why{grid-column:1/-1;font-size:.85rem;color:var(--muted)}
+.dz .act{grid-column:1/-1;font-size:.88rem}
+.dz .nm{font-weight:700}
+.dz .lv{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+
+.imd-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px;border-top:1px solid var(--line)}
+.wchip{font-size:.82rem;line-height:1.3;padding:4px 10px;border-radius:999px;display:inline-flex;gap:6px;align-items:center;max-width:100%}
+.wchip::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:currentColor}
+.wchip b{font-weight:700}
+.c-yellow{color:var(--wy);background:var(--wy-bg)} .c-orange{color:var(--wo);background:var(--wo-bg)}
+.c-red{color:var(--wr);background:var(--wr-bg)} .c-green{color:var(--wg);background:var(--wg-bg)}
+
+.week{display:grid}
+.day{display:grid;grid-template-columns:4.2rem 1fr 4.6rem 5.4rem;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.day:last-child{border-bottom:0}
+.day .dn{font-weight:700}
+.dbar{height:8px;border-radius:4px;background:var(--sunken);overflow:hidden}
+.dbar i{display:block;height:100%;background:var(--rain);border-radius:4px}
+.day .mm,.day .tt{text-align:right}
+.day .wline{grid-column:1/-1;justify-self:start;margin-top:-2px}
+
+.log-list{font-size:.85rem;color:var(--muted);margin:0;padding-left:18px}
+details summary{cursor:pointer;font-weight:600}
+details p{font-size:.92rem;margin:.6em 0 0}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:0;font-size:.92rem}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0;text-align:right;font-family:var(--f-data)}
+footer{font-size:.8rem;color:var(--muted);text-align:center;padding-top:6px}
+footer a{color:inherit}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.9rem;max-width:calc(100% - 32px);z-index:9}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 3c5 7 9 12 9 17a9 9 0 0 1-18 0c0-5 4-10 9-17z" fill="var(--rain)"/><path d="M8 26l5-6 4 4 4-6 5 8" fill="none" stroke="var(--surface)" stroke-width="2" stroke-linejoin="round"/></svg>
+      <div><h1>Rainwatch</h1><small>Field, trail &amp; track forecaster</small></div>
+    </div>
+    <div class="seg" role="group" aria-label="Who is this for">
+      <button data-mode="hike" aria-pressed="true">Hiker</button>
+      <button data-mode="farm" aria-pressed="false">Farm</button>
+      <button data-mode="off" aria-pressed="false">Off-road</button>
+    </div>
+  </header>
+
+  <div id="sample-banner" class="banner sample" hidden></div>
+  <div id="alert-banner" class="banner alert" role="alert" hidden></div>
+
+  <section class="place" aria-label="Location">
+    <div class="row">
+      <input id="q" type="search" placeholder="Search a village, estate or trailhead" autocomplete="off" aria-label="Search location">
+      <button class="btn" id="search-btn">Search</button>
+      <button class="btn primary" id="gps-btn" title="Use my current position">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>My location</button>
+    </div>
+    <div id="results" class="results" hidden></div>
+    <div id="chips" class="chips" aria-label="Saved places"></div>
+  </section>
+
+  <section id="status" class="status" aria-live="polite">
+    <div class="status-main">
+      <div>
+        <div class="eyebrow" id="place-name">Loading…</div>
+        <h2 class="state" id="state">Checking the sky</h2>
+        <div class="sub" id="state-sub">Fetching forecasts from 7 weather models.</div>
+      </div>
+      <div class="temp"><div class="big num" id="temp">--<sup>°C</sup></div><div class="feels" id="feels"></div></div>
+    </div>
+    <div class="imd-row" id="imd-row" hidden></div>
+    <div class="meter-row">
+      <div class="meter"><b id="m-prob">--</b><span>Rain chance 6 h</span></div>
+      <div class="meter"><b id="m-agree">--</b><span>Models agree</span></div>
+      <div class="meter"><b id="m-hum">--</b><span>Humidity</span></div>
+      <div class="meter"><b id="m-wind">--</b><span>Wind km/h</span></div>
+    </div>
+    <div class="voice-row">
+      <button class="btn primary" id="brief-btn"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Brief me</button>
+      <button class="btn" id="ask-btn"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" fill="currentColor"/><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Ask</button>
+      <span class="heard" id="heard">Try "will it rain", "trail", "river", "crops" or "briefing".</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Next 12 hours</h2><span class="note" id="updated"></span></div>
+    <div class="strip" id="strip"></div>
+    <div class="legend"><span><i style="background:var(--rain)"></i>Likely rain (bar = mm)</span><span><i style="background:var(--rain-mid)"></i>Possible rain</span><span>% = consensus chance · labels = hour of day</span></div>
+  </section>
+
+  <section class="card" id="radar-card">
+    <div class="card-head"><h2>Rain radar</h2><span class="note">Last 2 hours, looping</span></div>
+    <div class="radar" id="radar">
+      <div class="layer base" id="radar-base"></div>
+      <div class="layer" id="radar-frames"></div>
+      <div class="pin" aria-hidden="true"></div>
+      <div class="ctl"><button id="rz-in" aria-label="Zoom in">+</button><button id="rz-out" aria-label="Zoom out">−</button><button id="r-play" aria-label="Pause loop">❚❚</button></div>
+      <div class="stamp" id="radar-stamp">--:--</div>
+      <div class="fallback" id="radar-fallback" hidden></div>
+    </div>
+    <p class="note">Rain moving toward the red dot will reach you soon. Radar: <a href="https://www.rainviewer.com" target="_blank" rel="noopener">Weather data by RainViewer</a> · Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2 id="advice-title">On the trail</h2></div>
+    <div class="advice" id="advice"></div>
+  </section>
+
+  <!-- Hiker + Off-road: terrain -->
+  <section class="card" data-modes="hike off">
+    <div class="card-head"><h2>Track &amp; terrain</h2>
+      <div class="field" style="min-width:0"><label for="soil" class="note" style="font-weight:600">Ground type</label>
+        <select id="soil">
+          <option value="black">Black cotton soil (regur)</option>
+          <option value="clay">Clay or paddy land</option>
+          <option value="loam">Loam / farm track</option>
+          <option value="red" selected>Red or laterite soil</option>
+          <option value="sandy">Sandy</option>
+          <option value="rocky">Rocky or gravel</option>
+        </select></div>
+    </div>
+    <div class="gauge" id="mud"></div>
+    <div class="sub-block" id="river"></div>
+    <div class="sub-block" id="slide"></div>
+  </section>
+
+  <section class="card" data-modes="hike off">
+    <div class="card-head"><h2>Weather along my route</h2><span class="note" id="route-name"></span></div>
+    <p class="note">Load a GPX track from your GPS or maps app. Rainwatch forecasts each stretch for the time you will reach it.</p>
+    <div class="row">
+      <label class="btn" for="gpx">Load GPX file</label><input id="gpx" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>
+      <button class="btn" id="route-clear">Clear route</button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="route-start">Start time</label><input id="route-start" type="datetime-local"></div>
+      <div class="field"><label for="route-speed">Average speed (km/h)</label><input id="route-speed" type="number" min="1" max="120" step="1" inputmode="numeric"></div>
+    </div>
+    <div id="route-out"></div>
+  </section>
+
+  <!-- Farm -->
+  <section class="card" data-modes="farm">
+    <div class="card-head"><h2>My crops &amp; disease risk</h2><span class="note">Last 3 days and next 3 days</span></div>
+    <div class="chips" id="crop-pick" aria-label="Choose your crops"></div>
+    <div id="crops" style="display:grid;gap:10px"></div>
+    <p class="note">Risk comes from hours of wet leaves, humidity, temperature, rain and soil wetness that each disease needs. It tells you when to scout and protect; it does not confirm infection. Confirm spray products and doses with your KVK, agri officer, or Spices Board / Coffee Board advisories.</p>
+  </section>
+
+  <section class="card" data-modes="farm">
+    <div class="card-head"><h2>Field readiness</h2><span class="note">Sowing, planting and field work</span></div>
+    <div id="planting"></div>
+  </section>
+
+  <section class="card" data-modes="farm" id="rainfall-card" hidden>
+    <div class="card-head"><h2>Season rain vs normal</h2><span class="note">IMD district rainfall</span></div>
+    <dl class="kv" id="rainfall"></dl>
+  </section>
+
+  <section class="card" data-modes="farm">
+    <div class="card-head"><h2>Mandi prices</h2><span class="note">Agmarknet via data.gov.in</span></div>
+    <div class="row"><button class="btn" id="mandi-btn">Check today's prices</button><span class="note" id="mandi-state"></span></div>
+    <div id="mandi-out"></div>
+    <details><summary>Use my own data.gov.in key</summary>
+      <p>Rainwatch uses data.gov.in's public sample key, which returns only a few records. Register free at data.gov.in for your own key and paste it here.</p>
+      <div class="row" style="margin-top:8px"><input id="mandi-key" type="text" placeholder="Your data.gov.in API key" aria-label="data.gov.in API key"><button class="btn" id="mandi-save">Save key</button></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Alerts &amp; voice</h2><span class="note" id="notify-state"></span></div>
+    <div class="grid2">
+      <div class="field"><label for="lead">Warn me before rain</label>
+        <select id="lead"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option></select></div>
+      <div class="field"><label for="thr">Only when chance is at least</label>
+        <select id="thr"><option value="40">40%</option><option value="50">50%</option><option value="60" selected>60%</option><option value="75">75%</option></select></div>
+    </div>
+    <div class="row"><button class="btn primary" id="notify-btn">Turn on rain alerts</button><button class="btn" id="test-btn">Send test alert</button></div>
+    <p class="note">Rainwatch checks every 10 minutes and alerts you once per rain spell. Keep this page open (a pinned tab or home-screen app) so the checks keep running.</p>
+    <div class="sub-block">
+      <h3>Voice</h3>
+      <div class="grid2">
+        <div class="field"><label for="voice">Voice</label><select id="voice"><option value="">Best English voice on this phone</option></select></div>
+        <div class="field"><label for="callme">Address me as</label><input id="callme" type="text" placeholder="e.g. Ravi, or sir" style="padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--sunken);min-width:0"></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="rate">Speaking speed</label><select id="rate"><option value="0.9">Measured</option><option value="1" selected>Normal</option><option value="1.12">Brisk</option></select></div>
+        <label class="toggle" style="align-self:end"><input type="checkbox" id="voice-alerts"> Speak rain alerts aloud</label>
+      </div>
+      <p class="note" id="voice-note"></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Model comparison</h2><span class="note">Next 24 h, weighted by accuracy</span></div>
+    <div class="table-box"><table class="wide">
+      <thead><tr><th>Model</th><th>Next rain</th><th class="r">24 h mm</th><th class="r">Now °C</th><th>Verdict</th><th>Weight</th></tr></thead>
+      <tbody id="models"></tbody>
+    </table></div>
+    <details><summary>How the prediction is made</summary>
+      <p>Rainwatch pulls the same location from seven global weather models: ECMWF (Europe), UK Met Office, DWD ICON (Germany), Météo-France, NOAA GFS (USA), GEM (Canada) and JMA (Japan). For places in India it adds the official IMD district nowcast when connected. Each hour, a model "votes" rain if it predicts at least 0.2 mm. Votes are weighted: ECMWF carries the most because it scores highest in published global verification, then UKMO, ICON and the rest.</p>
+      <p>The rain chance blends that weighted vote (70%) with the probability from Open-Meteo's best-match blend (30%). In India, an active IMD nowcast counts for about 40% of the rain chance during its 3-hour window, because it is issued by forecasters watching Doppler radar. Rain timing within the hour comes from 15-minute data. Your Ground truth reports raise or lower each model's weight for your area.</p>
+    </details>
+  </section>
+
+  <section class="card" id="imd-card">
+    <div class="card-head"><h2>Indian sources · IMD</h2><span class="pill na" id="imd-pill">Checking</span></div>
+    <p class="note">Official India Meteorological Department district nowcasts (rain, thunderstorm and lightning for the next 3 hours), 5-day district warnings and season rainfall. For places in India they feed the rain chance and can trigger alerts on their own.</p>
+    <p class="note" id="imd-detail"></p>
+    <details id="imd-setup"><summary>Connect IMD data</summary>
+      <p>IMD serves its API only to approved, IP-whitelisted servers. To connect: request API access from IMD's nodal officer (contacts are on mausam.imd.gov.in under APIs), run the Rainwatch IMD relay on the approved server, then enter the relay address here.</p>
+      <div class="row" style="margin-top:8px"><input id="imd-base" type="url" inputmode="url" placeholder="https://your-server/api/v1" aria-label="IMD API address"><button class="btn" id="imd-save">Save and test</button></div>
+      <p>India's own forecast models, NCMRWF's NCUM and IMD's GFS T1534, are not published as point forecasts that apps can read. Rainwatch already includes the models they are built on: NCUM uses the UK Met Office Unified Model, and IMD's GFS comes from NOAA's GFS.</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>This week</h2><span class="note">Consensus rain · min / max °C · IMD warnings</span></div>
+    <div class="week" id="week"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Ground truth log</h2><span class="note">Teach the app what really happened</span></div>
+    <p class="note">Tell Rainwatch what the sky is doing right now. Each report adjusts which models it trusts for your places.</p>
+    <div class="row"><button class="btn" id="rep-rain">It's raining here</button><button class="btn" id="rep-dry">It's dry here</button><button class="btn" id="rep-reset">Reset weights</button></div>
+    <ul class="log-list" id="log-list"></ul>
+  </section>
+
+  <footer><span id="offline-note"></span><br>Forecasts: Open-Meteo (ECMWF, UKMO, DWD, Météo-France, NOAA, ECCC, JMA), GloFAS river flow, IMD when connected. Temperatures in °C, rain in mm, wind in km/h.</footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const MODELS = [
+  {id:'ecmwf_ifs025',        name:'ECMWF IFS',     org:'European Centre',          w:1.00},
+  {id:'ukmo_seamless',       name:'UK Met Office', org:'Unified Model · base of India\'s NCUM', w:0.92},
+  {id:'icon_seamless',       name:'ICON',          org:'German Weather Service',   w:0.88},
+  {id:'meteofrance_seamless',name:'ARPEGE',        org:'Météo-France',             w:0.82},
+  {id:'gfs_seamless',        name:'GFS',           org:'NOAA · base of IMD GFS T1534', w:0.80},
+  {id:'gem_seamless',        name:'GEM',           org:'Environment Canada',       w:0.75},
+  {id:'jma_seamless',        name:'JMA GSM',       org:'Japan Meteorological Agency', w:0.75},
+];
+const WET = 0.2, H = 3600e3, M = 60e3, IST = 19800;
+const SAMPLE_PLACE = {name:'Sample estate · Madikeri, Kodagu', lat:12.4244, lon:75.7382, cc:'IN', district:'Kodagu', state:'Karnataka'};
+const $ = id => document.getElementById(id);
+
+// ---------- storage (best-effort) ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('rw.'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('rw.'+k, JSON.stringify(v)); }catch(e){} }
+};
+
+const state = {
+  mode: store.get('mode','hike'),
+  places: store.get('places', []),
+  current: store.get('current', null),
+  trust: store.get('trust', {}),
+  reports: store.get('reports', []),
+  settings: Object.assign({lead:60, thr:60, notify:false, voiceAlerts:false, voice:'', rate:1, callMe:''}, store.get('settings', {})),
+  alerted: store.get('alerted', {}),
+  crops: store.get('crops', ['coffee','pepper','arecanut']),
+  stages: store.get('stages', {}),
+  soil: store.get('soil', 'red'),
+  route: store.get('route', null),
+  routeStart: null,
+  speed: store.get('speed', {hike:4, off:20}),
+  mandiKey: store.get('mandiKey', ''),
+  extras: {flood:null, relief:null, rainfall:null},
+  routeWx: null,
+  data: null, sample: false, loading: false
+};
+
+// ---------- helpers ----------
+const pad = n => String(n).padStart(2,'0');
+function clock(ms, off){ const d = new Date(ms + off*1000); return pad(d.getUTCHours())+':'+pad(d.getUTCMinutes()); }
+function dayName(ms, off){ return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(ms + off*1000).getUTCDay()]; }
+function localDateKey(ms, off){ const d = new Date(ms + off*1000); return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate()); }
+function localHour(ms, off){ return new Date(ms + off*1000).getUTCHours(); }
+function humanIn(ms){
+  const m = Math.round((ms - Date.now())/M);
+  if (m <= 1) return 'now';
+  if (m < 60) return `in ~${m} min`;
+  const h = Math.floor(m/60), r = m%60;
+  if (h < 6) return r >= 10 ? `in ~${h} h ${Math.round(r/5)*5} min` : `in ~${h} h`;
+  return null;
+}
+const clamp = (v, a=0, b=1) => Math.max(a, Math.min(b, v));
+const placeName = () => state.sample ? SAMPLE_PLACE.name : (state.current ? state.current.name : '');
+const place = () => state.sample ? SAMPLE_PLACE : state.current;
+const trustOf = id => state.trust[id] ?? 1;
+const fmt1 = v => v == null || isNaN(v) ? '–' : (Math.round(v*10)/10).toFixed(1);
+const fmt0 = v => v == null || isNaN(v) ? '–' : String(Math.round(v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3600); }
+const offOf = () => state.data ? state.data.off : IST;
+
+async function fetchJSON(url, ms=12000){
+  const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), ms);
+  try{ const r = await fetch(url, {signal:ctl.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
+  finally{ clearTimeout(to); }
+}
+
+// ---------- forecast loading ----------
+async function fetchLive(p){
+  const loc = `latitude=${p.lat}&longitude=${p.lon}&timezone=auto`;
+  const multiVars = 'precipitation,temperature_2m,weather_code,wind_gusts_10m,cape';
+  const histVars = 'precipitation,temperature_2m,relative_humidity_2m,wind_gusts_10m,visibility,soil_moisture_0_to_1cm,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_temperature_6cm,et0_fao_evapotranspiration';
+  const F = 'https://api.open-meteo.com/v1/forecast?';
+  const [multi, best, hist] = await Promise.all([
+    fetchJSON(`${F}${loc}&forecast_days=7&past_hours=2&hourly=${multiVars}&models=${MODELS.map(m=>m.id).join(',')}`),
+    fetchJSON(`${F}${loc}&forecast_days=7&past_hours=2&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_gusts_10m`+
+      `&hourly=precipitation_probability,soil_moisture_0_to_1cm,et0_fao_evapotranspiration&minutely_15=precipitation&forecast_minutely_15=24&past_minutely_15=2`+
+      `&daily=temperature_2m_max,temperature_2m_min,sunset`),
+    fetchJSON(`${F}${loc}&past_days=7&forecast_days=7&hourly=${histVars}`)
+  ]);
+  return normalize(multi, best, hist);
+}
+const toEpochs = (arr, off) => arr.map(t => Date.parse(t + ':00Z') - off*1000);
+
+function normalize(multi, best, hist){
+  const off = multi.utc_offset_seconds || 0;
+  const h = multi.hourly;
+  const pick = (v, id) => h[`${v}_${id}`] ?? null;
+  const models = {};
+  for (const m of MODELS){
+    const precip = pick('precipitation', m.id);
+    if (!precip || precip.every(x => x == null)) continue;
+    models[m.id] = { precip, temp: pick('temperature_2m', m.id), code: pick('weather_code', m.id), gust: pick('wind_gusts_10m', m.id), cape: pick('cape', m.id) };
+  }
+  const bh = best.hourly || {};
+  const bIndex = new Map((bh.time||[]).map((t,i)=>[t,i]));
+  const align = arr => h.time.map(t => { const i = bIndex.get(t); return i == null || !arr ? null : arr[i]; });
+  const hh = hist.hourly;
+  return {
+    off, tz: multi.timezone_abbreviation || multi.timezone, elevation: hist.elevation ?? multi.elevation,
+    times: toEpochs(h.time, off), models,
+    pp: align(bh.precipitation_probability), soil: align(bh.soil_moisture_0_to_1cm), et0: align(bh.et0_fao_evapotranspiration),
+    current: best.current || {},
+    m15: best.minutely_15 ? { times: toEpochs(best.minutely_15.time, off), precip: best.minutely_15.precipitation } : null,
+    daily: best.daily ? { min: best.daily.temperature_2m_min, max: best.daily.temperature_2m_max, sunset: (best.daily.sunset||[]).map(s=>Date.parse(s+':00Z')-off*1000) } : null,
+    hist: { times: toEpochs(hh.time, off), precip: hh.precipitation, temp: hh.temperature_2m, rh: hh.relative_humidity_2m, gust: hh.wind_gusts_10m,
+            vis: hh.visibility, soil0: hh.soil_moisture_0_to_1cm, soil3: hh.soil_moisture_3_to_9cm, soil9: hh.soil_moisture_9_to_27cm,
+            soilT: hh.soil_temperature_6cm, et0: hh.et0_fao_evapotranspiration },
+    fetched: Date.now()
+  };
+}
+
+// River flow (GloFAS) and terrain relief (Open-Meteo elevation)
+async function loadExtras(p){
+  const jobs = [
+    fetchJSON(`https://flood-api.open-meteo.com/v1/flood?latitude=${p.lat}&longitude=${p.lon}&daily=river_discharge,river_discharge_max&past_days=30&forecast_days=7`).then(j => {
+      state.extras.flood = { times: j.daily.time.map(t => Date.parse(t+'T12:00:00Z') - IST*1000), q: j.daily.river_discharge, qmax: j.daily.river_discharge_max };
+    }).catch(() => { state.extras.flood = {error:true}; }),
+    (async () => {
+      const dd = 0.0135, lats = [], lons = [];          // about 1.5 km
+      for (const [a,b] of [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){ lats.push((p.lat + a*dd).toFixed(4)); lons.push((p.lon + b*dd/Math.cos(p.lat*Math.PI/180)).toFixed(4)); }
+      const j = await fetchJSON(`https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`);
+      const e = j.elevation.filter(v => v != null);
+      state.extras.relief = { centre: e[0], relief: Math.max(...e) - Math.min(...e) };
+    })().catch(() => { state.extras.relief = {error:true}; })
+  ];
+  await Promise.all(jobs);
+}
+
+// ---------- IMD (India Meteorological Department) ----------
+const IMD_DEFAULT = 'https://api.imd.gov.in/api/v1';
+const NOWCAST = {1:'No significant weather',2:'Light rain',3:'Light snow',4:'Light thunderstorm',7:'Moderate rain',12:'Heavy rain',
+  14:'Severe thunderstorm',15:'Very severe thunderstorm',17:'Thunderstorm with hail',18:'Severe dust storm',19:'High lightning risk'};
+const NC_RAIN = new Set([2,4,7,12,14,15,17,19]), NC_THUNDER = new Set([4,14,15,17,19]);
+const WARN = {2:'Heavy rain',4:'Thunderstorm & lightning',9:'Heat wave',12:'Cold wave',16:'Very heavy rain',17:'Extremely heavy rain'};
+const WARN_COLOR = {1:'red',2:'orange',3:'yellow',4:'green'};   // district warnings: 1 = red … 4 = green
+const NC_COLOR = {1:'green',2:'yellow',3:'orange',4:'red'};     // nowcasts: 1 = green … 4 = red
+state.imd = {base: store.get('imdBase', IMD_DEFAULT), status:'idle', district:null, nowcast:null, warning:null};
+
+const normName = s => String(s||'').toLowerCase().replace(/district|\(.*?\)/g,'').replace(/[^a-z]/g,'');
+function lev(a,b){ const m=[...Array(b.length+1).keys()]; for(let i=1;i<=a.length;i++){ let p=m[0]; m[0]=i; for(let j=1;j<=b.length;j++){ const t=m[j]; m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1)); p=t; } } return m[b.length]; }
+function matchDistrict(rows, district){
+  const target = normName(district); if (!target) return null;
+  let best = null, bd = 99;
+  for (const r of rows){
+    const n = normName(r.District ?? r.district ?? r.Station ?? r.station ?? r.Name ?? r.name); if (!n) continue;
+    const dd = n === target ? 0 : (n.includes(target) || target.includes(n)) ? 1 : lev(n, target);
+    if (dd < bd){ bd = dd; best = r; }
+  }
+  return bd <= 2 ? best : null;
+}
+const asList = j => Array.isArray(j) ? j : (j && Array.isArray(j.data) ? j.data : j ? [j] : []);
+function parseDate(s){
+  s = String(s||''); let m = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s); if (m) return [+m[1],+m[2],+m[3]];
+  m = /(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(s); if (m) return [+m[3],+m[2],+m[1]];
+  const d = new Date(Date.now()+IST*1000); return [d.getUTCFullYear(), d.getUTCMonth()+1, d.getUTCDate()];
+}
+function istTime(day, hhmm){ const s = String(hhmm ?? '').replace(/\D/g,''); if (s.length < 3) return null; return Date.UTC(day[0], day[1]-1, day[2], +s.slice(0,-2), +s.slice(-2)) - IST*1000; }
+function parseNowcast(row){
+  const codes = [];
+  for (const k in row){ const m = /^cat(\d+)$/i.exec(k); if (m){ const v = row[k]; if (v != null && v !== '' && v !== '0' && v !== 0 && v !== false) codes.push(+m[1]); } }
+  const day = parseDate(row.Date ?? row.date);
+  const from = istTime(day, row.toi ?? row.TOI ?? row.Toi);
+  let to = istTime(day, row.Vupto ?? row.vupto ?? row.VUPTO);
+  if (from && to && to <= from) to += 24*H;
+  const rain = codes.some(c => NC_RAIN.has(c));
+  const prob = rain ? (codes.some(c => [12,14,15,17].includes(c)) ? 90 : codes.some(c => [4,7,19].includes(c)) ? 80 : 70) : (codes.includes(1) ? 8 : null);
+  return {codes, labels: codes.filter(c => c !== 1).map(c => NOWCAST[c] || 'Weather code '+c), from: from ?? Date.now(), to: to ?? Date.now()+3*H,
+          prob, rain, thunder: codes.some(c => NC_THUNDER.has(c)), color: NC_COLOR[+row.color || +row.Color] || (rain ? 'yellow' : 'green')};
+}
+function parseWarning(row){
+  const b = parseDate(row.Date ?? row.date), t0 = Date.UTC(b[0], b[1]-1, b[2], 12) - IST*1000;
+  const days = [];
+  for (let i = 1; i <= 5; i++){
+    const raw = row['Day_'+i] ?? row['day_'+i]; if (raw == null) continue;
+    const codes = String(raw).split(/[^0-9]+/).filter(Boolean).map(Number).filter(c => c !== 1);
+    days.push({key: localDateKey(t0 + (i-1)*86400e3, IST), codes, labels: codes.map(c => WARN[c] || 'Warning code '+c),
+               color: WARN_COLOR[+(row[`Day${i}_Color`] ?? row[`day${i}_color`])] || (codes.length ? 'yellow' : 'green')});
+  }
+  return {days};
+}
+async function locateDistrict(p){
+  if (p.cc && p.cc !== 'IN') return false;
+  if (p.cc === 'IN' && p.district) return true;
+  const r = await fetchJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.lat}&longitude=${p.lon}&localityLanguage=en`);
+  const adm = (r.localityInfo && r.localityInfo.administrative) || [];
+  const dist = adm.find(a => a.adminLevel === 5) || adm.find(a => /district/i.test(a.description || ''));
+  p.cc = r.countryCode; p.district = dist ? dist.name.replace(/\s+district$/i, '') : null; p.state = p.state || r.principalSubdivision || null;
+  if (p.gps && (r.locality || r.city)){
+    p.name = (r.locality || r.city) + (p.district && p.district !== (r.locality || r.city) ? ', ' + p.district : '');
+    const saved = state.places.find(x => x.lat === p.lat && x.lon === p.lon); if (saved) Object.assign(saved, p);
+    store.set('places', state.places); renderChips();
+  }
+  store.set('current', p);
+  return p.cc === 'IN';
+}
+async function loadIMD(p){
+  const imd = state.imd; imd.nowcast = imd.warning = null; state.extras.rainfall = null;
+  try{ if (!(await locateDistrict(p))){ imd.status = 'outside'; return; } }
+  catch(e){ if (!p.district){ imd.status = 'nodistrict'; return; } }
+  imd.district = p.district;
+  if (!imd.district){ imd.status = 'nodistrict'; return; }
+  const base = imd.base.replace(/\/+$/, '');
+  const [nc, wr, rf] = await Promise.allSettled([fetchJSON(base + '/districtnowcast'), fetchJSON(base + '/districtwarning'), fetchJSON(base + '/districtrainfall')]);
+  if (nc.status === 'rejected' && wr.status === 'rejected'){
+    const e = nc.reason || {}; imd.status = (e instanceof TypeError || /HTTP 40[13]/.test(e.message || '')) ? 'denied' : 'error'; return;
+  }
+  const ncRow = nc.status === 'fulfilled' ? matchDistrict(asList(nc.value), imd.district) : null;
+  const wrRow = wr.status === 'fulfilled' ? matchDistrict(asList(wr.value), imd.district) : null;
+  const rfRow = rf.status === 'fulfilled' ? matchDistrict(asList(rf.value), imd.district) : null;
+  imd.nowcast = ncRow ? parseNowcast(ncRow) : null;
+  imd.warning = wrRow ? parseWarning(wrRow) : null;
+  state.extras.rainfall = rfRow || null;
+  imd.status = (ncRow || wrRow) ? 'ok' : 'nomatch'; imd.fetched = Date.now();
+}
+function activeNowcast(){ const nc = state.imd.nowcast; return nc && nc.prob != null && nc.to > Date.now() ? nc : null; }
+function todayWarning(){ const w = state.imd.warning; if (!w) return null; const k = localDateKey(Date.now(), IST); return w.days.find(x => x.key === k) || null; }
+
+function renderIMD(){
+  const imd = state.imd, row = $('imd-row'), pill = $('imd-pill'), det = $('imd-detail');
+  const nc = activeNowcast(), tw = todayWarning();
+  const chips = [];
+  if (nc && nc.rain) chips.push(`<span class="wchip c-${nc.color === 'green' ? 'yellow' : nc.color}"><b>IMD nowcast</b> ${esc(nc.labels.join(', '))} till ${clock(nc.to, IST)}</span>`);
+  else if (nc) chips.push(`<span class="wchip c-green"><b>IMD nowcast</b> No rain till ${clock(nc.to, IST)}</span>`);
+  if (tw) chips.push(tw.codes.length ? `<span class="wchip c-${tw.color}"><b>IMD ${tw.color} alert</b> ${esc(tw.labels.join(', '))} today</span>` : `<span class="wchip c-green"><b>IMD</b> No warning today</span>`);
+  row.innerHTML = chips.join(''); row.hidden = !chips.length;
+  const tag = {ok:['agree','Connected'], sample:['na','Sample'], denied:['differ','Not connected'], error:['differ','Unavailable'], outside:['na','Outside India'], nodistrict:['differ','No district'], nomatch:['differ','No match'], idle:['na','Checking']}[imd.status] || ['na','Checking'];
+  pill.className = 'pill ' + tag[0]; pill.textContent = tag[1];
+  const ncTxt = imd.nowcast ? `nowcast valid ${clock(imd.nowcast.from, IST)}–${clock(imd.nowcast.to, IST)} IST` : 'no current nowcast';
+  det.textContent = {
+    ok: `${imd.district} district · ${ncTxt} · ${imd.warning ? '5-day warnings loaded' : 'no warnings received'}.`,
+    sample: `Showing sample IMD data for Kodagu district so you can see how it works.`,
+    denied: `IMD did not answer this app. Its API only serves approved servers, so Rainwatch is using the 7 global models for now. Open "Connect IMD data" to set it up.`,
+    error: `IMD's service returned an error. Rainwatch will try again at the next refresh.`,
+    outside: `This place is outside India. IMD data covers Indian districts only.`,
+    nodistrict: `Could not work out the district for this place. Search for the nearest town to use IMD data.`,
+    nomatch: `IMD answered, but no district matched "${imd.district}".`,
+    idle: 'Checking IMD for this place…'
+  }[imd.status] || '';
+  $('imd-base').value = imd.base === IMD_DEFAULT ? '' : imd.base;
+  // Season rainfall (farm)
+  const rf = state.extras.rainfall, card = $('rainfall-card');
+  if (rf){
+    const rows = Object.entries(rf).filter(([k,v]) => /actual|normal|dep|%|rain/i.test(k) && v !== '' && v != null && typeof v !== 'object');
+    $('rainfall').innerHTML = rows.slice(0,10).map(([k,v]) => `<dt>${esc(k.replace(/_/g,' '))}</dt><dd>${esc(v)}</dd>`).join('');
+    card.hidden = !rows.length || state.mode !== 'farm';
+  } else card.hidden = true;
+}
+
+// ---------- consensus ----------
+function consensus(d){
+  const ids = Object.keys(d.models), nc = activeNowcast();
+  return d.times.map((t,i) => {
+    let wSum=0, wWet=0, mmSum=0, tSum=0, tW=0, n=0, nWet=0, thunder=0, gust=0, cape=0;
+    for (const id of ids){
+      const m = d.models[id], v = m.precip[i];
+      if (v == null) continue;
+      const w = MODELS.find(x=>x.id===id).w * trustOf(id);
+      wSum += w; mmSum += w*v; n++;
+      if (v >= WET){ wWet += w; nWet++; }
+      const tv = m.temp && m.temp[i]; if (tv != null){ tSum += w*tv; tW += w; }
+      const c = m.code && m.code[i]; if (c >= 95) thunder++;
+      const g = m.gust && m.gust[i]; if (g != null) gust = Math.max(gust, g);
+      const ca = m.cape && m.cape[i]; if (ca != null) cape = Math.max(cape, ca);
+    }
+    if (!n) return {t, start:t-H, prob:null, mm:null, n:0};
+    let prob = 100*wWet/wSum;
+    if (d.pp[i] != null) prob = 0.7*prob + 0.3*d.pp[i];
+    let imdP = null;
+    if (nc && t > nc.from && t - H < nc.to){ imdP = nc.prob; const wi = 0.67*trustOf('imd_nowcast'); prob = (prob + imdP*wi)/(1 + wi); if (nc.thunder) thunder += 2; }
+    return {t, start:t-H, prob, mm:mmSum/wSum, n, nWet, temp: tW? tSum/tW : null, thunder, gust, cape, imd: imdP};
+  });
+}
+
+// Hourly precipitation is the total for the PRECEDING hour, so slot i covers [t-1h, t].
+function findRain(d, cons, thr){
+  const now = Date.now();
+  const idx = cons.findIndex(c => c.t > now && c.prob != null && c.prob >= thr);
+  const raining = (d.current.precipitation ?? 0) >= 0.1 ||
+    (d.m15 && d.m15.times.some((t,k)=> t <= now + 5*M && t > now - 20*M && d.m15.precip[k] >= 0.1));
+  if (idx < 0) return {raining, onset:null};
+  let onset = Math.max(now, cons[idx].start);
+  if (d.m15){
+    for (let k=0;k<d.m15.times.length;k++){
+      const s = d.m15.times[k]-15*M;
+      if (d.m15.times[k] > now && s < cons[idx].t && d.m15.precip[k] >= 0.1){ onset = Math.max(now, s); break; }
+    }
+  }
+  let end = idx; while (end+1 < cons.length && cons[end+1].prob >= thr) end++;
+  const total = cons.slice(idx, end+1).reduce((a,c)=>a+c.mm,0);
+  return {raining, onset, idx, end: cons[end].t, total, prob: Math.max(...cons.slice(idx,end+1).map(c=>c.prob)), thunder: cons.slice(idx,end+1).some(c=>c.thunder>0)};
+}
+function modelNextRain(d, id){
+  const now = Date.now(), m = d.models[id];
+  for (let i=0;i<d.times.length;i++) if (d.times[i] > now && m.precip[i] != null && m.precip[i] >= WET) return Math.max(now, d.times[i]-H);
+  return null;
+}
+
+// ---------- derived metrics (history + forecast) ----------
+function metrics(d){
+  const h = d.hist, now = Date.now(), cons = d.cons, off = d.off;
+  if (!h) return null;
+  const rel = i => (h.times[i] - now)/H;
+  const sumH = (a,b) => { let s=0; for (let i=0;i<h.times.length;i++){ const r = rel(i); if (r > a && r <= b) s += h.precip[i] || 0; } return s; };
+  const sumC = (a,b) => { let s=0; for (const c of cons){ if (c.mm == null) continue; const r = (c.t-now)/H; if (r > a && r <= b) s += c.mm; } return s; };
+  const maxC = (k,a,b) => { let v=-Infinity; for (const c of cons){ const r=(c.t-now)/H; if (r>a && r<=b && c[k]!=null) v=Math.max(v,c[k]); } return v===-Infinity?null:v; };
+  const minC = (k,a,b) => { let v=Infinity; for (const c of cons){ const r=(c.t-now)/H; if (r>a && r<=b && c[k]!=null) v=Math.min(v,c[k]); } return v===Infinity?null:v; };
+  let iNow = h.times.findIndex(t => t > now); if (iNow < 0) iNow = h.times.length; const iLast = Math.max(0, iNow-1);
+  const daysF = new Map();
+  for (const c of cons){ if (c.mm == null || c.t <= now) continue; const k = localDateKey(c.start, off); daysF.set(k, (daysF.get(k)||0) + c.mm); }
+  const today = localDateKey(now, off);
+  let dryDaysAhead = 0; for (const [k,v] of [...daysF.entries()].filter(([k])=>k>today)){ if (v < 2.5) dryDaysAhead++; else break; }
+  const daysP = new Map();
+  for (let i=0;i<iNow;i++){ const k = localDateKey(h.times[i]-H, off); if (k >= today) continue; daysP.set(k, (daysP.get(k)||0) + (h.precip[i]||0)); }
+  const rainyDaysPast7 = [...daysP.values()].slice(-7).filter(v => v >= 2.5).length;
+  let lastRain = -1; for (let i=iLast;i>=0 && i>iLast-240;i--){ if ((h.precip[i]||0) >= 0.5){ lastRain = i; break; } }
+  let dryET = 0; for (let i=lastRain+1;i<=iLast;i++) dryET += h.et0[i] || 0;
+  const hrsSinceRain = lastRain < 0 ? 240 : (now - h.times[lastRain])/H;
+  let minVis6 = Infinity, visAt = null;
+  for (let i=iNow;i<h.times.length && rel(i) <= 6;i++){ const v = h.vis && h.vis[i]; if (v != null && v < minVis6){ minVis6 = v; visAt = h.times[i]; } }
+  const cur = k => h[k] ? h[k][iLast] : null;
+  const next24 = sumC(0,24);
+  return {
+    past24: sumH(-24,0), past48: sumH(-48,-24), past72: sumH(-72,-48), past3d: sumH(-72,0), past7: sumH(-168,0),
+    next6: sumC(0,6), next12: sumC(0,12), next24, next48: sumC(0,48), next72: sumC(0,72), next7: sumC(0,168),
+    gust24: maxC('gust',0,24) ?? 0, tmax24: maxC('temp',0,24), tmin24: minC('temp',0,24),
+    soil0: cur('soil0'), soil3: cur('soil3'), soil9: cur('soil9'), soilT: cur('soilT'),
+    dryDaysAhead, rainyDaysPast7, dryET, hrsSinceRain,
+    minVis6: minVis6 === Infinity ? null : minVis6, visAt, daysF, today, iNow
+  };
+}
+
+// ---------- trail mud score ----------
+const SOILS = {black:{f:1.45,n:'black cotton soil'}, clay:{f:1.2,n:'clay'}, loam:{f:1.0,n:'loam'}, red:{f:0.85,n:'red soil'}, sandy:{f:0.55,n:'sandy ground'}, rocky:{f:0.4,n:'rocky track'}};
+const MUD_LV = [[20,'Firm','ok'],[40,'Damp','ok'],[60,'Slippery','warn'],[80,'Muddy','bad'],[101,'Deep mud','bad']];
+function mudScore(m){
+  const soil = SOILS[state.soil] || SOILS.loam;
+  const rainEff = m.past24 + 0.6*m.past48 + 0.35*m.past72;
+  const sm = ((m.soil0 ?? 0.25) + (m.soil3 ?? m.soil0 ?? 0.25))/2;
+  const wet = clamp((sm - 0.15)/0.3);
+  const raw = rainEff*1.4 + wet*45 + Math.min(m.next12, 30)*1.5 - m.dryET*4;
+  const score = Math.round(clamp(raw*soil.f, 0, 100));
+  const lv = MUD_LV.find(x => score < x[0]);
+  return {score, label: lv[1], cls: lv[2], rainEff, sm, soil};
+}
+
+// ---------- river crossings (GloFAS) ----------
+function riverStatus(m){
+  const f = state.extras.flood;
+  if (!f) return {cls:'na', label:'Checking', text:'Loading river flow…'};
+  if (f.error || !f.q || f.q.every(v => v == null)) return {cls:'na', label:'No data', text:'No river flow data for this point.'};
+  const now = Date.now();
+  const past = [], next = [];
+  f.times.forEach((t,i) => { const q = f.q[i]; if (q == null) return; if (t < now - 12*H) past.push(q); else if (t < now + 3*86400e3) next.push(Math.max(q, f.qmax?.[i] ?? q)); });
+  const med = past.length ? [...past].sort((a,b)=>a-b)[Math.floor(past.length/2)] : null;
+  const peak = next.length ? Math.max(...next) : null;
+  if (med == null || peak == null) return {cls:'na', label:'No data', text:'Not enough river flow data.'};
+  if (med < 0.5 && peak < 1) return {cls:'ok', label:'Small stream', text:'No major river flows through this point. Small streams can still rise fast after heavy rain.', med, peak, ratio:1};
+  const ratio = peak / Math.max(med, 0.5);
+  let cls='ok', label='Normal', text=`Peak flow in the next 3 days about ${fmt0(peak)} m³/s against a 30-day typical ${fmt0(med)} m³/s.`;
+  if (ratio >= 6){ cls='bad'; label='Do not cross'; text = `River expected at ${ratio.toFixed(1)}× its usual flow (${fmt0(peak)} m³/s). Fords and causeways may be under fast water. Do not cross.`; }
+  else if (ratio >= 3){ cls='bad'; label='High'; text = `River expected at ${ratio.toFixed(1)}× its usual flow. Avoid fords and low causeways; find a bridge.`; }
+  else if (ratio >= 1.5){ cls='warn'; label='Rising'; text = `River rising to about ${ratio.toFixed(1)}× its usual flow. Walk the crossing first and check depth before driving through.`; }
+  if (m && m.next24 >= 50 && cls === 'ok'){ cls='warn'; label='Flash risk'; text += ` Heavy rain (${fmt0(m.next24)} mm in 24 h) can flood small nallahs within an hour.`; }
+  return {cls, label, text, med, peak, ratio};
+}
+
+// ---------- ghat landslide risk ----------
+function landslide(m){
+  const r = state.extras.relief;
+  if (!r) return {cls:'na', label:'Checking', text:'Loading terrain…'};
+  if (r.error) return {cls:'na', label:'No data', text:'Terrain data unavailable.'};
+  const rain5 = m.past3d + m.next48, rain24 = Math.max(m.past24, m.next24);
+  if (r.relief < 40) return {cls:'ok', label:'Flat terrain', text:`Gentle ground (about ${fmt0(r.relief)} m of relief nearby), so landslides are unlikely.`, rain5, rain24};
+  let lvl = rain24 >= 100 || rain5 >= 250 ? 3 : rain24 >= 60 || rain5 >= 150 ? 2 : rain24 >= 30 || rain5 >= 80 ? 1 : 0;
+  if (r.relief < 100 && lvl > 0) lvl--;
+  const tw = todayWarning(); if (tw && tw.codes.some(c => [16,17].includes(c))) lvl = Math.min(3, lvl + 1);
+  const L = [['ok','Low'],['warn','Moderate'],['bad','High'],['bad','Very high']][lvl];
+  const advice = ['Normal caution on ghat roads.', 'Watch for falling stones and small slips on cut slopes.',
+    'Avoid ghat roads and steep trails at night and during heavy rain. Turn back at cracks, tilted trees or muddy water from slopes.',
+    'Postpone travel through ghats. Saturated slopes can fail without warning.'][lvl];
+  return {cls:L[0], label:L[1], text:`${fmt0(rain5)} mm over 5 days (3 past, 2 ahead), heaviest 24 h ${fmt0(rain24)} mm, ${fmt0(r.relief)} m of relief nearby. ${advice}`, rain5, rain24, lvl};
+}
+
+// ---------- crops & disease risk ----------
+const CROPS = {
+  coffee:{name:'Coffee', commodity:'Coffee',
+    stages:[['preblossom','Pre-blossom (Feb–Mar)'],['blossom','Blossom & backing showers'],['berry','Berry development (monsoon)'],['harvest','Ripening & harvest']],
+    diseases:[
+      {name:'Leaf rust', kind:'wet', p:{lo:18,hi:28,full:30,run:6}, act:'Check leaf undersides for orange powdery spots. Copper (Bordeaux) sprays before and after the monsoon are the Coffee Board standard; spray only in a dry window.'},
+      {name:'Black rot (Koleroga)', kind:'soil', p:{lo:18,hi:26,rain:120,sm:0.42}, act:'Thin shade and remove affected twigs so the canopy dries. Keep drains open; protect with copper in a rain-free spell.'}]},
+  pepper:{name:'Black pepper', commodity:'Black pepper',
+    stages:[['spike','Spike initiation (May–Jun)'],['berry','Berry development'],['harvest','Harvest (Dec–Feb)']],
+    diseases:[
+      {name:'Foot rot / quick wilt', kind:'soil', p:{lo:22,hi:30,rain:100,sm:0.42}, act:'Make sure no water stands around vine basins. Remove fallen infected leaves and spikes. Copper spray and soil drench as per Spices Board / IISR advice.'},
+      {name:'Anthracnose (Pollu)', kind:'wet', p:{lo:24,hi:31,full:30,run:6}, act:'Look for dark sunken spots and hollow berries on spikes. Remove affected spikes and protect with copper in a dry window.'}]},
+  orange:{name:'Orange / mandarin', commodity:'Orange',
+    stages:[['flower','Flowering (bahar)'],['set','Fruit set'],['fruitdev','Fruit development'],['harvest','Harvest']],
+    diseases:[
+      {name:'Citrus canker', kind:'splash', p:{lo:20,hi:35,gust:20,full:6}, act:'Wind-driven rain spreads canker through leaf wounds. After the rain, prune infected twigs, disinfect tools and protect new flush with copper.'},
+      {name:'Phytophthora gummosis / root rot', kind:'soil', p:{lo:20,hi:32,rain:100,sm:0.42}, act:'Keep water off the trunk (ring basins, not trunk basins). Check the collar for oozing gum and treat early on your agri officer\'s advice.'}]},
+  arecanut:{name:'Arecanut', commodity:'Arecanut(Betelnut/Supari)',
+    stages:[['pre','Pre-monsoon'],['monsoon','Monsoon (nut development)'],['harvest','Harvest & drying']],
+    diseases:[
+      {name:'Fruit rot (Mahali / Koleroga)', kind:'soil', p:{lo:19,hi:27,rain:150,sm:0.42}, act:'Long spells of heavy rain with little sun drive fruit rot. Bordeaux on bunches before the monsoon, repeated after about 40–45 days, is the CPCRI standard; spray in breaks between rain.'},
+      {name:'Bud rot', kind:'soil', p:{lo:18,hi:26,rain:180,sm:0.44}, act:'Watch for yellowing of the spindle leaf. Remove rotten tissue early and protect the crown with copper.'}]},
+  cardamom:{name:'Cardamom', commodity:'Cardamoms',
+    stages:[['flowering','Flowering & panicles'],['capsule','Capsule development'],['harvest','Harvest & curing']],
+    diseases:[
+      {name:'Capsule rot (Azhukal)', kind:'soil', p:{lo:20,hi:26,rain:100,sm:0.42}, act:'Regulate shade and remove old tillers so clumps dry. Clear trash from around panicles. Copper spray as per Spices Board advice.'},
+      {name:'Leaf blight (Chenthal)', kind:'wet', p:{lo:22,hi:30,full:30,run:6}, act:'Remove and destroy badly affected leaves. Follow Spices Board fungicide advice in a dry window.'}]},
+  avocado:{name:'Avocado', commodity:null,
+    stages:[['flowering','Flowering'],['growth','Fruit growth'],['harvest','Harvest']],
+    diseases:[
+      {name:'Phytophthora root rot', kind:'soil', p:{lo:15,hi:30,rain:90,sm:0.40}, act:'Avocado roots die in waterlogged soil within days. Open drains, keep mulch off the trunk and stop irrigation until the soil dries.'},
+      {name:'Anthracnose', kind:'wet', p:{lo:20,hi:30,full:30,run:8}, act:'Fruit infections show up later at ripening. Prune for airflow and protect developing fruit with copper in a dry spell.'}]},
+  banana:{name:'Banana', commodity:'Banana',
+    stages:[['planting','Planting'],['veg','Vegetative growth'],['bunch','Shooting & bunch'],['harvest','Harvest']],
+    diseases:[
+      {name:'Sigatoka leaf spot', kind:'wet', p:{lo:23,hi:30,full:36,run:8}, act:'Remove and destroy spotted leaves, keep spacing open and drain standing water. Follow your KVK spray schedule in a dry window.'},
+      {name:'Rhizome rot', kind:'soil', p:{lo:25,hi:35,rain:100,sm:0.42}, act:'Warm waterlogged soil favours rhizome rot. Clear drains and avoid wounding the pseudostem.'}]},
+  paddy:{name:'Paddy', commodity:'Paddy(Dhan)(Common)',
+    stages:[['nursery','Nursery'],['transplant','Transplanting'],['tillering','Tillering'],['flowering','Flowering'],['maturity','Maturity & harvest']],
+    diseases:[
+      {name:'Blast', kind:'wet', p:{lo:20,hi:27,full:24,run:10,night:true}, act:'Long dew-wet nights at 20–27°C suit blast. Hold extra nitrogen, keep the field flooded and scout for eye-shaped leaf spots.'},
+      {name:'Bacterial leaf blight', kind:'splash', p:{lo:25,hi:34,gust:25,full:6}, act:'Wind-driven rain spreads BLB through leaf wounds. Hold nitrogen top-dressing and do not let water flow from infected plots into others.'},
+      {name:'Sheath blight', kind:'humid', p:{lo:28,hi:32,rh:90,full:36}, act:'Check lower stems near the water line for grey-green blotches. Avoid dense planting and heavy nitrogen.'}]},
+  turmeric:{name:'Turmeric', commodity:'Turmeric',
+    stages:[['planting','Planting (Apr–Jun)'],['veg','Vegetative'],['rhizome','Rhizome development'],['harvest','Harvest & curing']],
+    diseases:[
+      {name:'Leaf blotch (Taphrina)', kind:'wet', p:{lo:21,hi:25,full:30,run:6}, act:'Small yellow spots on both sides of leaves. Remove affected leaves and protect in a dry window as your agri officer advises.'},
+      {name:'Leaf spot (Colletotrichum)', kind:'wet', p:{lo:25,hi:30,full:30,run:6}, act:'Oval brown spots with grey centres. Remove infected leaves and avoid overhead irrigation.'},
+      {name:'Rhizome rot', kind:'soil', p:{lo:22,hi:32,rain:100,sm:0.42}, act:'Standing water in beds causes soft rot. Open drainage channels between beds now.'}]}
+};
+
+function hoursIn(h, a, b){ const now = Date.now(), out = []; for (let i=0;i<h.times.length;i++){ const r = (h.times[i]-now)/H; if (r > a && r <= b) out.push(i); } return out; }
+const isWetHr = (h,i) => (h.rh?.[i] ?? 0) >= 90 || (h.precip[i] ?? 0) >= 0.1;
+const inTemp = (h,i,lo,hi) => h.temp[i] != null && h.temp[i] >= lo && h.temp[i] <= hi;
+
+function diseaseScore(dz, h, idx, off){
+  const p = dz.p;
+  if (dz.kind === 'wet' || dz.kind === 'humid'){
+    let hrs=0, run=0, best=0;
+    for (const i of idx){
+      const night = p.night ? (localHour(h.times[i], off) >= 19 || localHour(h.times[i], off) < 8) : true;
+      const cond = dz.kind === 'wet' ? isWetHr(h,i) : (h.rh?.[i] ?? 0) >= p.rh;
+      if (cond && inTemp(h,i,p.lo,p.hi) && night){ hrs++; run++; best = Math.max(best, run); } else run = 0;
+    }
+    let s = 100*hrs/p.full + (p.run && best >= p.run ? 15 : 0);
+    const why = dz.kind === 'wet' ? `${hrs} h of wet leaves at ${p.lo}–${p.hi}°C${p.night?' (night)':''}${p.run ? `, longest spell ${best} h` : ''}` : `${hrs} h above ${p.rh}% humidity at ${p.lo}–${p.hi}°C`;
+    return {s: Math.round(clamp(s,0,100)), why};
+  }
+  if (dz.kind === 'soil'){
+    let rain=0, sat=0, rhH=0, tH=0;
+    for (const i of idx){ rain += h.precip[i]||0; sat = Math.max(sat, h.soil3?.[i] ?? h.soil0?.[i] ?? 0); if ((h.rh?.[i]??0) >= 90) rhH++; if (inTemp(h,i,p.lo,p.hi)) tH++; }
+    const n = Math.max(1, idx.length);
+    const satF = sat >= p.sm ? 1 : clamp((sat - 0.25)/(p.sm - 0.25));
+    const s = (55*clamp(rain/p.rain) + 30*satF + 15*rhH/n) * (0.4 + 0.6*tH/n);
+    return {s: Math.round(clamp(s,0,100)), why: `${fmt0(rain)} mm rain, soil ${fmt0(sat*100)}% wet, ${Math.round(100*rhH/n)}% of hours very humid`};
+  }
+  if (dz.kind === 'splash'){
+    let hrs=0, rain=0;
+    for (const i of idx){ rain += h.precip[i]||0; if ((h.precip[i]||0) >= 0.5 && (h.gust?.[i]||0) >= p.gust && inTemp(h,i,p.lo,p.hi)) hrs++; }
+    return {s: Math.round(clamp(100*hrs/p.full + (rain > 30 ? 10 : 0), 0, 100)), why: `${hrs} h of rain with gusts over ${p.gust} km/h, ${fmt0(rain)} mm total`};
+  }
+  return {s:0, why:''};
+}
+const riskLv = s => s >= 60 ? ['bad','High'] : s >= 30 ? ['warn','Moderate'] : ['ok','Low'];
+
+function stageTip(cropId, stage, m){
+  const r7 = m.next7, r48 = m.next48, g = m.gust24, dry = m.dryDaysAhead, sm = m.soil3 ?? m.soil0 ?? 0.3, tmax = m.tmax24 ?? 30;
+  const harvest = (what) => r48 >= 5 ? ['warn', `Rain due in 48 h (about ${fmt0(r48)} mm). ${what} before it and keep drying produce covered.`] : ['ok', `Dry 48 h ahead${dry ? `, ${dry} dry day${dry>1?'s':''} in a row` : ''}: good for ${what.toLowerCase()} and sun-drying.`];
+  const T = {
+    coffee:{ preblossom: () => r7 >= 20 ? ['ok', `Blossom shower likely: about ${fmt0(r7)} mm in 7 days. Around 20–25 mm triggers even flowering.`] : ['warn', `Only ${fmt0(r7)} mm expected this week. If you have sprinklers, about 25 mm of blossom irrigation gives uniform flowering.`],
+      blossom: () => r7 >= 15 ? ['ok', `Backing showers on the way (${fmt0(r7)} mm this week) help fruit set.`] : ['warn', 'Dry week ahead. Backing irrigation 2–3 weeks after blossom improves fruit set.'],
+      berry: () => m.past7 + r7 >= 250 ? ['bad', 'Very wet fortnight: keep drains clear and watch for black rot and berry drop.'] : ['info', 'Usual monsoon conditions. Keep drains and shade regulation up to date.'],
+      harvest: () => harvest('Pick ripe cherry') },
+    pepper:{ spike: () => r7 >= 40 ? ['ok', `Showers ahead (${fmt0(r7)} mm) help trigger spiking and flowering.`] : ['warn', 'Showers are needed to trigger spikes; light irrigation helps if the dry spell continues.'],
+      berry: () => m.past7 + r7 >= 250 ? ['bad', 'Heavy rain spell: peak foot-rot risk. Check drainage at every vine basin.'] : ['info', 'Keep basins mulched and drained.'],
+      harvest: () => harvest('Harvest mature spikes') },
+    orange:{ flower: () => r48 >= 10 ? ['warn', 'Rain at flowering lowers fruit set and raises disease risk.'] : ['ok', 'Dry weather suits flowering and set.'],
+      set: () => g >= 40 ? ['bad', `Gusts to ${fmt0(g)} km/h can shed young fruit.`] : ['ok', 'Calm weather helps fruit set. Keep soil evenly moist.'],
+      fruitdev: () => g >= 40 ? ['bad', `Gusts to ${fmt0(g)} km/h may cause fruit drop; prop heavy limbs.`] : ['info', 'Keep soil moisture steady to avoid fruit drop and splitting.'],
+      harvest: () => harvest('Harvest fruit') },
+    arecanut:{ pre: () => r7 >= 50 ? ['warn', `Heavy rain arriving (${fmt0(r7)} mm this week). Finish the protective spray on bunches before it.`] : ['info', 'Ready drains and spray equipment before the monsoon.'],
+      monsoon: () => dry >= 1 ? ['ok', 'A rain-free day is ahead: use it to repeat protective spraying.'] : ['warn', 'No dry break in the forecast yet; spray as soon as one appears.'],
+      harvest: () => harvest('Harvest and dry nuts') },
+    cardamom:{ flowering: () => tmax >= 30 && r7 < 10 ? ['warn', 'Hot and dry: irrigate and check shade, heat drops flowers.'] : ['ok', 'Moist conditions support flowering.'],
+      capsule: () => m.past7 + r7 >= 200 ? ['bad', 'Very wet: capsule-rot risk. Thin shade and clear trash from panicles.'] : ['info', 'Keep shade regulated and clumps clean.'],
+      harvest: () => harvest('Pick ripe capsules') },
+    avocado:{ flowering: () => r48 >= 10 ? ['warn', 'Rain at flowering lowers pollination; bees fly less in rain.'] : ['ok', 'Good flying weather for pollinators.'],
+      growth: () => sm >= 0.42 ? ['bad', 'Soil is saturated; avocado roots suffocate. Stop irrigation and open drains.'] : (r7 < 5 && tmax > 32 ? ['warn', 'Hot dry week ahead: irrigate deeply, the shallow roots dry fast.'] : ['ok', 'Soil moisture is in a good range.']),
+      harvest: () => harvest('Harvest mature fruit') },
+    banana:{ planting: () => sm >= 0.42 ? ['warn', 'Too wet to plant; suckers rot in waterlogged pits.'] : ['ok', 'Soil is workable for planting.'],
+      veg: () => r7 < 5 && tmax > 33 ? ['warn', 'Hot and dry: banana needs frequent irrigation now.'] : ['info', 'Keep up irrigation and desuckering.'],
+      bunch: () => g >= 40 ? ['bad', `Gusts up to ${fmt0(g)} km/h can snap plants carrying bunches. Prop with bamboo now.`] : ['ok', 'Winds are light; props are still wise for heavy bunches.'],
+      harvest: () => harvest('Harvest bunches') },
+    paddy:{ nursery: () => m.next24 >= 50 ? ['warn', 'Heavy rain may flood the nursery; keep drainage outlets open.'] : ['ok', 'Normal nursery conditions.'],
+      transplant: () => r48 >= 10 ? ['ok', 'Rain will help puddling and transplanting.'] : ['info', 'Plan irrigation for puddling.'],
+      tillering: () => r48 >= 20 ? ['warn', 'Hold nitrogen top-dressing until after the rain to avoid losses.'] : ['ok', 'Good window for nitrogen top-dressing.'],
+      flowering: () => r48 >= 5 ? ['warn', 'Rain during morning flowering (9 am to noon) lowers pollination and grain set.'] : ['ok', 'Dry mornings ahead suit flowering.'],
+      maturity: () => r48 >= 5 || g >= 40 ? ['bad', 'Rain and wind can lodge the crop and sprout grain. Harvest ripe fields first.'] : ['ok', `Dry ${dry || 2}+ days ahead: harvest and dry grain.`] },
+    turmeric:{ planting: () => sm >= 0.42 ? ['warn', 'Beds are too wet to plant; seed rhizomes may rot.'] : ['ok', 'Good soil condition for planting.'],
+      veg: () => m.next24 >= 50 ? ['warn', 'Heavy rain: check bed drainage to avoid rhizome rot.'] : ['info', 'Mulch and earth up after weeding.'],
+      rhizome: () => r7 < 5 ? ['warn', 'Dry week: irrigate, rhizomes are filling now.'] : ['info', 'Moisture is adequate for rhizome growth.'],
+      harvest: () => dry >= 3 ? ['ok', `${dry} dry days ahead: good for boiling and sun-curing.`] : ['warn', 'Curing needs several sunny days and rain is due; plan covered drying.'] }
+  };
+  const f = T[cropId] && T[cropId][stage];
+  return f ? f() : ['info','—'];
+}
+
+function renderCrops(d, m){
+  $('crop-pick').innerHTML = Object.entries(CROPS).map(([id,c]) => `<button class="chip" data-crop="${id}" aria-pressed="${state.crops.includes(id)}">${c.name}</button>`).join('');
+  if (!m){ $('crops').innerHTML = '<p class="note">Refresh to load the weather history needed for disease risk.</p>'; return; }
+  const h = d.hist, past = hoursIn(h,-72,0), next = hoursIn(h,0,72);
+  $('crops').innerHTML = state.crops.map(id => {
+    const c = CROPS[id]; if (!c) return '';
+    const st = state.stages[id] || c.stages[0][0];
+    const [tk, tt] = stageTip(id, st, m);
+    const rows = c.diseases.map(dz => {
+      const a = diseaseScore(dz, h, past, d.off), b = diseaseScore(dz, h, next, d.off);
+      const top = Math.max(a.s, b.s), [cls, lab] = riskLv(top), [ca, la] = riskLv(a.s), [cb, lb] = riskLv(b.s);
+      return `<div class="dz"><span class="nm">${dz.name}</span><span class="lv"><span class="lvl ${cls}">${lab}</span></span>
+        <span class="why">Last 3 days: <b>${la}</b> (${esc(a.why)}). Next 3 days: <b>${lb}</b> (${esc(b.why)}).</span>
+        ${top >= 30 ? `<span class="act">${esc(dz.act)}</span>` : ''}</div>`;
+    }).join('');
+    return `<div class="crop"><div class="crop-head"><h3>${c.name}</h3>
+      <select data-stage="${id}" aria-label="${c.name} crop stage">${c.stages.map(([k,n]) => `<option value="${k}" ${k===st?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div class="tip ${tk}"><span class="tag">Stage</span><p>${tt}</p></div>
+      <div>${rows}</div></div>`;
+  }).join('') || '<p class="note">Tap the crops you grow above.</p>';
+}
+
+function renderPlanting(m){
+  if (!m){ $('planting').innerHTML = ''; return; }
+  const sm = m.soil3 ?? m.soil0;
+  const out = [];
+  let ok = true;
+  if (sm != null){
+    if (sm < 0.18){ out.push(['warn', `Soil is dry (${fmt0(sm*100)}% moisture at 3–9 cm). Rainfed sowing should wait for a good soaking rain.`]); ok = false; }
+    else if (sm > 0.40){ out.push(['warn', `Soil is waterlogged (${fmt0(sm*100)}%). Machinery will compact it and seed may rot.`]); ok = false; }
+    else out.push(['ok', `Soil moisture ${fmt0(sm*100)}% at 3–9 cm is good for sowing and field work.`]);
+  }
+  if (m.next48 >= 30){ out.push(['warn', `Heavy rain due (${fmt0(m.next48)} mm in 48 h) could wash out fresh sowing. Wait until after it.`]); ok = false; }
+  out.push(m.rainyDaysPast7 >= 3 ? ['info', `${m.rainyDaysPast7} rainy days in the past week: rains are established for rainfed sowing.`] : ['info', `Only ${m.rainyDaysPast7} rainy day${m.rainyDaysPast7===1?'':'s'} in the past week: rains are not yet steady.`]);
+  if (m.soilT != null) out.push(['info', `Soil temperature at 6 cm: ${fmt0(m.soilT)}°C.`]);
+  $('planting').innerHTML = `<div class="verdict"><b>${ok ? 'Good to sow' : 'Wait'}</b><span class="lvl ${ok?'ok':'warn'}">${ok ? 'Field ready' : 'Not ready'}</span></div><div class="advice" style="margin-top:8px">${out.map(([k,t]) => tip(k, k==='ok'?'Ready':k==='warn'?'Wait':'Info', t)).join('')}</div>`;
+}
+
+// ---------- terrain rendering ----------
+function sparkline(vals, med){
+  const W = 300, Hh = 46, v = vals.map(x => x ?? 0), max = Math.max(1, ...v, med||0);
+  const pts = v.map((x,i) => `${(i/(v.length-1||1)*W).toFixed(1)},${(Hh - 4 - x/max*(Hh-8)).toFixed(1)}`).join(' ');
+  const my = med != null ? (Hh - 4 - med/max*(Hh-8)).toFixed(1) : null;
+  return `<svg class="spark" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" aria-hidden="true">
+    ${my ? `<line x1="0" x2="${W}" y1="${my}" y2="${my}" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/>` : ''}
+    <polygon points="0,${Hh} ${pts} ${W},${Hh}" fill="var(--rain-soft)"/><polyline points="${pts}" fill="none" stroke="var(--rain)" stroke-width="2"/></svg>`;
+}
+function renderTerrain(m){
+  if (!m){ $('mud').innerHTML = '<p class="note">Refresh to load ground conditions.</p>'; $('river').innerHTML=''; $('slide').innerHTML=''; return; }
+  const mud = mudScore(m);
+  const offTxt = {Firm:'Firm tracks. Normal tyre pressures; watch for dust and loose gravel on descents.',
+    Damp:'Damp surface. Use 4H on climbs; clay and red soil turn slick on steep pitches.',
+    Slippery:'Slippery. Engage 4WD, air down moderately within your tyre maker\'s range, and stay smooth on the throttle downhill.',
+    Muddy:'Muddy. Use 4L, carry recovery straps, shackles and traction boards, and travel in convoy. Black-soil fields may be impassable.',
+    'Deep mud':'Deep mud likely. Avoid unpaved routes, especially black cotton soil, where vehicles sink and tracks get damaged.'};
+  const hikeTxt = {Firm:'Dry, firm trail with good grip.', Damp:'Damp in shaded sections. Rock and roots may be slick.',
+    Slippery:'Slippery trail. Wear lugged boots and use trekking poles on descents.', Muddy:'Muddy trail. Expect sliding on slopes and leeches in forests.',
+    'Deep mud':'Deep mud. Consider a different route or postpone.'};
+  $('mud').innerHTML = `<div class="verdict"><h3>Trail mud score</h3><b class="num">${mud.score}</b><span class="lvl ${mud.cls}">${mud.label}</span></div>
+    <div class="gauge-track" role="img" aria-label="Mud score ${mud.score} of 100"><span class="gauge-dot" style="left:${mud.score}%"></span></div>
+    <div class="gauge-scale"><span>Firm</span><span>Damp</span><span>Slippery</span><span>Muddy</span><span>Deep</span></div>
+    <p class="note">${fmt0(m.past24)} mm rain in the last 24 h, ${fmt0(m.past48+m.past72)} mm the 2 days before, topsoil ${fmt0(mud.sm*100)}% wet, ${fmt1(m.dryET)} mm dried out since the last rain, on ${mud.soil.n}.</p>
+    ${tip(mud.cls==='ok'?'ok':mud.cls, state.mode==='off'?'Driving':'Trail', state.mode==='off' ? offTxt[mud.label] : hikeTxt[mud.label])}`;
+  const rv = riverStatus(m), f = state.extras.flood;
+  $('river').innerHTML = `<div class="verdict"><h3>River crossings</h3><span class="lvl ${rv.cls}">${rv.label}</span></div>
+    ${f && f.q && !f.error ? sparkline(f.q.slice(-21), rv.med) + '<div class="gauge-scale"><span>2 weeks ago</span><span>Today</span><span>+7 days</span></div>' : ''}
+    <p class="note">${esc(rv.text)} River flow from GloFAS covers larger rivers on a ~5 km grid; walk any crossing before driving it.</p>`;
+  const ls = landslide(m);
+  $('slide').innerHTML = `<div class="verdict"><h3>Ghat landslide risk</h3><span class="lvl ${ls.cls}">${ls.label}</span></div><p class="note">${esc(ls.text)} This is an indicative rain-and-slope check, not an official warning.</p>`;
+}
+
+// ---------- rendering ----------
+function render(){
+  const d = state.data; if (!d) return;
+  const cons = d.cons = consensus(d);
+  const thr = +state.settings.thr, now = Date.now();
+  const nowIdx = Math.max(0, cons.findIndex(c => c.t > now));
+  const rain = d.rain = findRain(d, cons, thr);
+  const m = d.m = metrics(d);
+
+  $('place-name').textContent = placeName() + (d.tz ? ` · ${clock(now, d.off)} ${d.tz}` : '');
+  let st, sub;
+  if (rain.raining){
+    st = 'Raining now';
+    let i = nowIdx; while (i < cons.length && cons[i].prob >= Math.min(thr,50)) i++;
+    sub = i < cons.length ? `Expected to ease around ${clock(cons[i].start, d.off)}.` : 'Rain continues through the day.';
+  } else if (rain.onset && rain.onset - now < 6*H){
+    const hi = humanIn(rain.onset);
+    st = hi === 'now' ? 'Rain starting' : `Rain ${hi}`;
+    sub = `Around ${clock(rain.onset, d.off)} · ${Math.round(rain.prob)}% chance · about ${fmt1(rain.total)} mm until ${clock(rain.end, d.off)}` + (rain.thunder ? ' · thunder possible' : '');
+  } else if (rain.onset && rain.onset - now < 24*H){
+    st = 'Dry for now';
+    sub = `Next rain likely ${dayName(rain.onset,d.off) === dayName(now,d.off) ? 'today' : dayName(rain.onset,d.off)} around ${clock(rain.onset, d.off)} (${Math.round(rain.prob)}%).`;
+  } else {
+    st = 'Dry next 24 h';
+    sub = rain.onset ? `Next likely rain ${dayName(rain.onset,d.off)} around ${clock(rain.onset,d.off)}.` : 'No rain expected by any majority of models this week.';
+  }
+  $('state').textContent = st; $('state-sub').textContent = sub;
+  d.statusText = {st, sub};
+  $('status').classList.toggle('wet', !!(rain.raining || (rain.onset && rain.onset - now < 2*H)));
+
+  const c = d.current;
+  const temp = c.temperature_2m ?? cons[nowIdx]?.temp;
+  $('temp').innerHTML = (temp == null ? '--' : Math.round(temp)) + '<sup>°C</sup>';
+  $('feels').textContent = c.apparent_temperature != null ? `Feels like ${Math.round(c.apparent_temperature)}°C` : '';
+  const next6 = cons.slice(nowIdx, nowIdx+6).filter(x=>x.prob!=null);
+  $('m-prob').textContent = next6.length ? Math.round(Math.max(...next6.map(x=>x.prob))) + '%' : '--';
+  const cur = cons[nowIdx];
+  $('m-agree').textContent = cur && cur.n ? `${Math.max(cur.nWet, cur.n-cur.nWet)}/${cur.n}` : '--';
+  $('m-hum').textContent = c.relative_humidity_2m != null ? c.relative_humidity_2m + '%' : '--';
+  $('m-wind').textContent = c.wind_speed_10m != null ? Math.round(c.wind_speed_10m) + (c.wind_gusts_10m ? `/${Math.round(c.wind_gusts_10m)}` : '') : '--';
+
+  const hrs = cons.slice(nowIdx, nowIdx+12);
+  const maxmm = Math.max(2, ...hrs.map(h=>h.mm||0));
+  $('strip').innerHTML = hrs.map((h,k) => {
+    const pct = h.prob == null ? 0 : Math.round(h.prob);
+    const hgt = h.mm ? Math.max(h.mm >= WET ? 6 : 0, Math.round(h.mm/maxmm*100)) : 0;
+    return `<div class="hr ${k===0?'now':''}" title="${clock(h.start,d.off)}–${clock(h.t,d.off)}: ${fmt1(h.mm)} mm, ${pct}%${h.imd!=null?' (includes IMD nowcast)':''}">
+      <div class="p num">${pct}%</div>
+      <div class="bar-box"><div class="bar ${pct < thr ? 'lo':''}" style="height:${hgt}%"></div></div>
+      <div class="t num">${k===0?'Now':clock(h.start,d.off).slice(0,2)}</div></div>`;
+  }).join('');
+  $('updated').textContent = state.sample ? 'Sample data' : 'Updated ' + clock(d.fetched, d.off);
+
+  renderIMD();
+  renderModels(d, cons, nowIdx);
+  renderAdvice(d, cons, nowIdx, rain, m);
+  renderWeek(d, cons);
+  if (state.mode === 'farm'){ renderCrops(d, m); renderPlanting(m); }
+  else { renderTerrain(m); renderRoute(); }
+  renderAlerts();
+  $('offline-note').textContent = state.sample ? '' : `Forecast saved on this phone at ${clock(d.fetched, d.off)}; it stays available offline for 24 hours.`;
+}
+
+function renderModels(d, cons, nowIdx){
+  const consRain = d.rain.onset;
+  const rows = MODELS.filter(m => d.models[m.id]).map(m => {
+    const md = d.models[m.id];
+    const nr = modelNextRain(d, m.id);
+    const tot = md.precip.slice(nowIdx, nowIdx+24).reduce((a,v)=>a+(v||0),0);
+    const tnow = md.temp ? md.temp[nowIdx] : null;
+    const soonC = consRain != null && consRain - Date.now() <= 24*H, soonM = nr != null && nr - Date.now() <= 24*H;
+    const agree = (!soonC && !soonM) || (soonC && soonM && Math.abs(nr - consRain) <= 2*H);
+    const verdict = agree ? '<span class="pill agree">Agrees</span>' : '<span class="pill differ">' + (soonM && !soonC ? 'Wetter' : !soonM && soonC ? 'Drier' : 'Other timing') + '</span>';
+    const w = m.w * trustOf(m.id);
+    return `<tr><td><span class="mname">${m.name}</span><span class="morg">${m.org}</span></td>
+      <td class="num">${nr && nr - Date.now() < 48*H ? (dayName(nr,d.off)===dayName(Date.now(),d.off)?'':dayName(nr,d.off)+' ') + clock(nr, d.off) : '—'}</td>
+      <td class="r num">${fmt1(tot)}</td><td class="r num">${tnow==null?'–':Math.round(tnow)}</td><td>${verdict}</td>
+      <td><span class="trust"><i style="width:${Math.round(w/1.5*44)}px"></i><span class="num">${w.toFixed(2)}</span></span></td></tr>`;
+  });
+  const nc = state.imd.nowcast;
+  if (nc){
+    const live = nc.to > Date.now();
+    const nr = live && nc.rain ? Math.max(Date.now(), nc.from) : null;
+    const agree = nc.rain ? (consRain != null && consRain <= nc.to + H) : (consRain == null || consRain > nc.to);
+    const verdict = !live ? '<span class="pill na">Expired</span>' : agree ? '<span class="pill agree">Agrees</span>' : `<span class="pill differ">${nc.rain ? 'Wetter' : 'Drier'}</span>`;
+    const w = 0.67*trustOf('imd_nowcast');
+    rows.push(`<tr><td><span class="mname">IMD Nowcast</span><span class="morg">India Met Dept · official, ${esc(state.imd.district||'')}</span></td>
+      <td class="num">${nr ? clock(nr, d.off) : '—'}</td><td class="r" colspan="2">${esc(nc.rain ? nc.labels.join(', ') : 'No rain')}</td><td>${verdict}</td>
+      <td><span class="trust"><i style="width:${Math.round(w/1.5*44)}px"></i><span class="num">${w.toFixed(2)}</span></span></td></tr>`);
+  }
+  const ctot = cons.slice(nowIdx, nowIdx+24).reduce((a,c)=>a+(c.mm||0),0);
+  rows.push(`<tr class="consensus"><td>Rainwatch consensus<span class="morg">${Object.keys(d.models).length} models${activeNowcast() ? ' + IMD nowcast' : ''} blended</span></td>
+    <td class="num">${d.rain.onset && d.rain.onset-Date.now()<48*H ? clock(d.rain.onset,d.off) : '—'}</td><td class="r num">${fmt1(ctot)}</td>
+    <td class="r num">${cons[nowIdx]?.temp==null?'–':Math.round(cons[nowIdx].temp)}</td><td colspan="2">${d.rain.onset ? Math.round(d.rain.prob)+'% at peak' : 'Dry'}</td></tr>`);
+  $('models').innerHTML = rows.join('');
+}
+
+function tip(kind, tag, html){ return `<div class="tip ${kind}"><span class="tag">${tag}</span><p>${html}</p></div>`; }
+
+function renderAdvice(d, cons, nowIdx, rain, m){
+  const out = []; const now = Date.now();
+  const n6 = cons.slice(nowIdx, nowIdx+6), n24 = cons.slice(nowIdx, nowIdx+24), n48 = cons.slice(nowIdx, nowIdx+48);
+  const maxGust6 = Math.max(0, ...n6.map(c=>c.gust||0));
+  const thunderAt = n6.find(c => c.thunder >= 2 || (c.cape > 1500 && c.prob >= 40));
+  const temps = n6.map(c=>c.temp).filter(v=>v!=null);
+  const tmax = temps.length ? Math.max(...temps) : null, tmin = temps.length ? Math.min(...temps) : null;
+  const tw = todayWarning(), nc = activeNowcast(), dist = state.imd.district;
+  const mode = state.mode;
+  if (tw && tw.codes.length){
+    const heavy = tw.codes.some(c => [2,16,17].includes(c)), storm = tw.codes.includes(4), heat = tw.codes.includes(9);
+    const lvl = `IMD ${tw.color} alert for ${esc(dist)} district today: <b>${esc(tw.labels.join(', '))}</b>.`;
+    const kind = tw.color === 'red' || tw.color === 'orange' ? 'bad' : 'warn';
+    const extra = mode === 'farm'
+      ? (heavy ? ' Clear field drains, store harvested produce under cover and postpone spraying and fertiliser.' : storm ? ' Shelter livestock and avoid working in open fields during storms.' : heat ? ' Irrigate in the evening and give livestock shade and water.' : '')
+      : (heavy ? ' Avoid ghat sections, river crossings and landslide-prone slopes.' : storm ? ' Plan to be off summits and open ground by early afternoon.' : heat ? ' Start at dawn and finish before noon.' : '');
+    out.push(tip(kind, 'IMD alert', lvl + extra));
+  }
+  if (nc && nc.rain) out.push(tip('info', 'IMD nowcast', `IMD expects <b>${esc(nc.labels.join(', ').toLowerCase())}</b> in ${esc(dist)} district until <b>${clock(nc.to, IST)}</b>.`));
+  const tA = thunderAt ? clock(Math.max(now, thunderAt.start), d.off) : null;
+  if (mode === 'hike' || mode === 'off'){
+    $('advice-title').textContent = mode === 'hike' ? 'On the trail' : 'On the track';
+    if (thunderAt) out.push(tip('bad','Lightning', mode === 'hike' ? `Thunderstorm risk from about <b>${tA}</b>. Be off exposed ridges and summits before then.` : `Thunderstorm risk from about <b>${tA}</b>. Stay inside the vehicle with windows up; avoid lone trees and hilltop stops.`));
+    if (rain.raining) out.push(tip('warn','Wet', mode === 'hike' ? 'Rain falling now. Expect slippery rock and roots; cross streams early before levels rise.' : 'Rain falling now. Tracks will soften quickly; slow down and keep off camber lines.'));
+    else if (rain.onset && rain.onset - now < 6*H) out.push(tip('warn', mode === 'hike' ? 'Rain gear' : 'Plan', `Rain due around <b>${clock(rain.onset,d.off)}</b>. ${mode === 'hike' ? 'Pack a shell and plan to reach shelter or the trailhead by then.' : 'Clear muddy climbs and water crossings before it arrives.'}`));
+    else out.push(tip('ok','Go', `No rain expected by the model majority for the next 6 hours. Good window for the ${mode === 'hike' ? 'hike' : 'run'}.`));
+    if (m && m.minVis6 != null && m.minVis6 < 1000) out.push(tip(m.minVis6 < 300 ? 'bad' : 'warn', 'Fog', `Visibility may drop to about <b>${fmt0(m.minVis6)} m</b> around ${clock(m.visAt, d.off)}. ${mode === 'off' ? 'Use fog lamps, drive slowly and keep convoy spacing visible.' : 'Stay on marked trails and keep your group together.'}`));
+    if (maxGust6 >= 50) out.push(tip('warn','Wind', `Gusts up to <b>${Math.round(maxGust6)} km/h</b> on open ground. ${mode === 'off' ? 'Watch for falling branches on forest tracks.' : 'Take care on exposed sections.'}`));
+    if (tmax != null && tmax >= 35) out.push(tip('bad','Heat', `Up to <b>${Math.round(tmax)}°C</b>. Carry extra water${mode === 'off' ? ' and watch engine temperature on slow climbs' : ' and rest in shade at midday'}.`));
+    else if (tmin != null && tmin <= 5) out.push(tip('warn','Cold', `Down to <b>${Math.round(tmin)}°C</b>. Bring an insulating layer; wet and cold raises hypothermia risk.`));
+    const ss = d.daily && d.daily.sunset.find(s => s > now);
+    if (ss && ss - now <= 13*H) out.push(tip('info','Daylight', `Sunset at <b>${clock(ss,d.off)}</b>, ${ss-now < H ? Math.round((ss-now)/M)+' min' : (Math.round((ss-now)/H*10)/10)+' h'} of light left.${mode === 'off' ? ' Avoid unknown tracks after dark.' : ''}`));
+    else if (ss) out.push(tip('warn','After dark', mode === 'off' ? 'It is dark. Stick to tracks you know, keep speeds low and stay with your convoy.' : 'It is dark. Use a headlamp, stay on marked trails and keep your group together.'));
+  } else {
+    $('advice-title').textContent = 'On the farm';
+    const sprayOK = n6.every(c => (c.prob||0) < 30) && maxGust6 < 20;
+    const sprayEnd = cons.slice(nowIdx).findIndex(c => (c.prob||0) >= 30 || (c.gust||0) >= 20);
+    if (sprayOK) out.push(tip('ok','Spraying', `Good spray window: dry and calm${sprayEnd>0 ? ` until about <b>${clock(cons[nowIdx+sprayEnd].start,d.off)}</b>` : ''}. Most products need 4–6 rain-free hours to set.`));
+    else out.push(tip('bad','Spraying', `Hold spraying: ${n6.some(c=>(c.prob||0)>=30) ? 'rain likely within 6 h would wash it off' : `gusts up to ${Math.round(maxGust6)} km/h will cause drift`}.`));
+    const rain48 = n48.reduce((a,c)=>a+(c.mm||0),0);
+    const et48 = n48.reduce((a,_,k)=>a+(d.et0[nowIdx+k]||0),0);
+    if (et48 > 0){
+      if (rain48 >= et48) out.push(tip('ok','Irrigation', `Skip irrigation. About <b>${fmt1(rain48)} mm</b> rain is due in 48 h against <b>${fmt1(et48)} mm</b> crop water use (ET₀).`));
+      else out.push(tip('warn','Irrigation', `Rain (<b>${fmt1(rain48)} mm</b>) won't cover crop water use (<b>${fmt1(et48)} mm</b> ET₀) over 48 h. Plan about ${fmt1(et48-rain48)} mm of irrigation.`));
+    }
+    const heavy = n24.find(c => c.mm >= 7.5 && c.prob >= 50);
+    if (heavy) out.push(tip('bad','Fertiliser', `Heavy rain (${fmt1(heavy.mm)} mm/h) around <b>${clock(heavy.start,d.off)}</b>. Delay fertiliser and manure to avoid runoff.`));
+    if (rain.onset && rain.onset - now < 6*H && !rain.raining) out.push(tip('warn','Harvest', `Rain around <b>${clock(rain.onset,d.off)}</b>. Cover harvested produce, hay and grain before then.`));
+    if (thunderAt) out.push(tip('bad','Lightning', `Thunderstorms possible from <b>${tA}</b>. Move livestock away from lone trees and fences.`));
+  }
+  $('advice').innerHTML = out.join('');
+}
+
+function warnLine(k){
+  const w = state.imd.warning && state.imd.warning.days.find(x => x.key === k);
+  return w && w.codes.length ? `<span class="wchip wline c-${w.color}"><b>IMD ${w.color}</b> ${esc(w.labels.join(', '))}</span>` : '';
+}
+function renderWeek(d, cons){
+  const days = new Map();
+  cons.forEach(c => {
+    if (c.prob == null) return;
+    const k = localDateKey(c.start, d.off);
+    if (!days.has(k)) days.set(k, {t:c.start, mm:0, prob:0});
+    const o = days.get(k); o.mm += c.mm; o.prob = Math.max(o.prob, c.prob);
+  });
+  const today = localDateKey(Date.now(), d.off);
+  const list = [...days.entries()].filter(([k])=>k>=today).slice(0,7);
+  const maxmm = Math.max(5, ...list.map(([,o])=>o.mm));
+  $('week').innerHTML = list.map(([k,o],i) => {
+    const mn = d.daily?.min?.[i], mx = d.daily?.max?.[i];
+    return `<div class="day"><span class="dn">${k===today?'Today':dayName(o.t,d.off)}</span>
+      <div class="dbar" title="${Math.round(o.prob)}% peak chance"><i style="width:${Math.round(o.mm/maxmm*100)}%;opacity:${0.35+0.65*o.prob/100}"></i></div>
+      <span class="mm num">${fmt1(o.mm)} mm</span><span class="tt num">${mn==null?'–':Math.round(mn)}° / ${mx==null?'–':Math.round(mx)}°</span>${warnLine(k)}</div>`;
+  }).join('');
+}
+
+// ---------- route weather (GPX) ----------
+function haversine(a, b){ const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLon=(b.lon-a.lon)*Math.PI/180; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+function parseGPX(text, fname){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  let nodes = [...doc.getElementsByTagName('trkpt')]; if (!nodes.length) nodes = [...doc.getElementsByTagName('rtept')]; if (!nodes.length) nodes = [...doc.getElementsByTagName('wpt')];
+  const pts = nodes.map(n => ({lat:+n.getAttribute('lat'), lon:+n.getAttribute('lon'), ele: n.getElementsByTagName('ele')[0] ? +n.getElementsByTagName('ele')[0].textContent : null})).filter(p => isFinite(p.lat) && isFinite(p.lon));
+  if (pts.length < 2) throw new Error('No track points found in this file.');
+  let km = 0; pts[0].km = 0; for (let i=1;i<pts.length;i++){ km += haversine(pts[i-1], pts[i]); pts[i].km = km; }
+  const nm = (doc.getElementsByTagName('name')[0]?.textContent || fname.replace(/\.gpx$/i,'')).trim().slice(0,60);
+  // keep 8 evenly spaced points
+  const N = Math.min(8, pts.length), keep = [];
+  for (let k=0;k<N;k++){ const target = km*k/(N-1); let best = pts[0]; for (const p of pts) if (Math.abs(p.km-target) < Math.abs(best.km-target)) best = p; keep.push({lat:+best.lat.toFixed(4), lon:+best.lon.toFixed(4), km:+best.km.toFixed(1), ele:best.ele}); }
+  const eles = pts.map(p=>p.ele).filter(v=>v!=null);
+  return {name:nm, total:+km.toFixed(1), pts:keep, maxEle: eles.length ? Math.max(...eles) : null, minEle: eles.length ? Math.min(...eles) : null};
+}
+async function loadRouteWx(){
+  const r = state.route; if (!r) return;
+  if (state.sample){ state.routeWx = sampleRouteWx(r); renderRoute(); return; }
+  $('route-out').innerHTML = '<p class="note"><span class="spin"></span> Forecasting each stretch…</p>';
+  try{
+    const j = await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${r.pts.map(p=>p.lat).join(',')}&longitude=${r.pts.map(p=>p.lon).join(',')}&timezone=auto&forecast_days=3&hourly=precipitation,precipitation_probability,temperature_2m,visibility,wind_gusts_10m,weather_code`, 20000);
+    const arr = Array.isArray(j) ? j : [j];
+    state.routeWx = arr.map(x => ({off:x.utc_offset_seconds||0, times: toEpochs(x.hourly.time, x.utc_offset_seconds||0), ...x.hourly}));
+    store.set('routeWx', {at:Date.now(), wx:state.routeWx});
+  }catch(e){
+    const c = store.get('routeWx', null);
+    if (c && Date.now() - c.at < 24*H) state.routeWx = c.wx; else { $('route-out').innerHTML = '<p class="note">Could not load the route forecast. Check your connection and try again.</p>'; return; }
+  }
+  renderRoute();
+}
+function routeStartMs(){ const v = $('route-start').value; const t = v ? new Date(v).getTime() : NaN; return isFinite(t) ? t : Date.now(); }
+function renderRoute(){
+  const r = state.route, out = $('route-out');
+  $('route-name').textContent = r ? `${r.name} · ${r.total} km` : '';
+  if (!$('route-speed').value) $('route-speed').value = state.speed[state.mode === 'off' ? 'off' : 'hike'];
+  if (!r){ out.innerHTML = '<p class="note">No route loaded.</p>'; return; }
+  const wx = state.routeWx; if (!wx){ out.innerHTML = ''; return; }
+  const speed = Math.max(1, +$('route-speed').value || 4), start = routeStartMs(), off = wx[0]?.off ?? IST;
+  let worst = null;
+  const rows = r.pts.map((p,k) => {
+    const w = wx[k] || wx[wx.length-1]; const eta = start + p.km/speed*H;
+    let i = w.times.findIndex(t => t >= eta); if (i < 0) return `<tr><td class="num">${p.km}</td><td class="num">${clock(eta, off)}</td><td colspan="5" class="note">Beyond forecast range</td></tr>`;
+    const mm = w.precipitation[i] ?? 0, pr = w.precipitation_probability?.[i] ?? null, t = w.temperature_2m[i], vis = w.visibility?.[i], g = w.wind_gusts_10m?.[i], code = w.weather_code?.[i];
+    const flags = [];
+    if (mm >= 1 && (pr ?? 60) >= 50) flags.push('<span class="flag">Rain</span>');
+    if (code >= 95) flags.push('<span class="flag bad">Thunder</span>');
+    if (vis != null && vis < 1000) flags.push(`<span class="flag ${vis<300?'bad':''}">Fog</span>`);
+    if (g >= 50) flags.push('<span class="flag">Wind</span>');
+    const sc = mm*(pr ?? 60)/100 + (code >= 95 ? 5 : 0) + (vis != null && vis < 1000 ? 2 : 0);
+    if (!worst || sc > worst.sc) worst = {sc, km:p.km, eta, flags:flags.length};
+    return `<tr><td class="num">${p.km}${p.ele!=null?`<span class="morg">${fmt0(p.ele)} m</span>`:''}</td><td class="num">${dayName(eta,off)!==dayName(Date.now(),off)?dayName(eta,off)+' ':''}${clock(eta, off)}</td>
+      <td class="r num">${fmt1(mm)}${pr!=null?`<span class="morg">${pr}%</span>`:''}</td><td class="r num">${fmt0(t)}°</td><td class="r num">${vis==null?'–':vis>=10000?'10+ km':fmt0(vis/1000*10)/10+' km'}</td><td class="r num">${fmt0(g)}</td><td>${flags.join('') || '<span class="pill agree">Clear</span>'}</td></tr>`;
+  }).join('');
+  const sum = worst && worst.flags ? `Watch the stretch around <b>km ${worst.km}</b> at about <b>${clock(worst.eta, off)}</b>.` : 'No rain, fog or thunder flagged along the route for this start time.';
+  out.innerHTML = `${tip(worst && worst.flags ? 'warn' : 'ok', 'Route', sum + ` Arrival around ${clock(start + r.total/speed*H, off)}.${r.maxEle!=null ? ` Highest point ${fmt0(r.maxEle)} m.` : ''}`)}
+    <div class="table-box" style="margin-top:8px"><table class="wide"><thead><tr><th>km</th><th>ETA</th><th class="r">Rain mm</th><th class="r">Temp</th><th class="r">Visibility</th><th class="r">Gust</th><th>Watch</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// ---------- rain radar (RainViewer + OSM) ----------
+const radar = {z:6, frames:[], host:'', idx:0, timer:null, playing:true, failed:false};
+async function loadRadar(){
+  try{
+    const j = await fetchJSON('https://api.rainviewer.com/public/weather-maps.json', 10000);
+    radar.host = j.host; const past = (j.radar && j.radar.past) || [];
+    radar.frames = past.filter((_,i) => (past.length-1-i) % 2 === 0).slice(-7);
+    radar.failed = !radar.frames.length;
+  }catch(e){ radar.failed = true; radar.frames = []; }
+  drawRadar();
+}
+function drawRadar(){
+  const p = place(); const box = $('radar'), fb = $('radar-fallback');
+  if (!p){ return; }
+  if (radar.failed){ fb.hidden = false; fb.textContent = 'Radar could not load here. It works when Rainwatch runs in your phone browser with internet.'; $('radar-base').innerHTML=''; $('radar-frames').innerHTML=''; return; }
+  fb.hidden = true;
+  const W = box.clientWidth || 360, Hh = box.clientHeight || 280, z = radar.z, n = 2**z;
+  const px = (p.lon+180)/360*n*256, s = Math.sin(p.lat*Math.PI/180), py = (0.5 - Math.log((1+s)/(1-s))/(4*Math.PI))*n*256;
+  const x0 = px - W/2, y0 = py - Hh/2;
+  const tiles = [];
+  for (let tx = Math.floor(x0/256); tx <= Math.floor((x0+W)/256); tx++) for (let ty = Math.floor(y0/256); ty <= Math.floor((y0+Hh)/256); ty++){
+    if (ty < 0 || ty >= n) continue; tiles.push({x:((tx%n)+n)%n, y:ty, l:Math.round(tx*256 - x0), t:Math.round(ty*256 - y0)});
+  }
+  $('radar-base').innerHTML = tiles.map(t => `<img alt="" src="https://tile.openstreetmap.org/${z}/${t.x}/${t.y}.png" style="left:${t.l}px;top:${t.t}px" loading="lazy">`).join('');
+  $('radar-frames').innerHTML = radar.frames.map((f,k) => `<div class="layer frame" data-k="${k}" ${k===radar.frames.length-1?'':'hidden'}>${tiles.map(t => `<img alt="" src="${radar.host}${f.path}/256/${z}/${t.x}/${t.y}/2/1_1.png" style="left:${t.l}px;top:${t.t}px">`).join('')}</div>`).join('');
+  const first = $('radar-base').querySelector('img');
+  if (first) first.onerror = () => { fb.hidden = false; fb.textContent = 'Map images are blocked in this preview. Radar works when Rainwatch runs in your phone browser.'; };
+  radar.idx = radar.frames.length - 1; stampRadar(); playRadar();
+}
+function stampRadar(){ const f = radar.frames[radar.idx]; $('radar-stamp').textContent = f ? clock(f.time*1000, offOf()) + (radar.idx === radar.frames.length-1 ? ' · latest' : '') : '--:--'; }
+function playRadar(){
+  clearInterval(radar.timer);
+  if (!radar.playing || radar.frames.length < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  radar.timer = setInterval(() => {
+    const layers = $('radar-frames').children; if (!layers.length) return;
+    layers[radar.idx] && (layers[radar.idx].hidden = true);
+    radar.idx = (radar.idx + 1) % layers.length; layers[radar.idx].hidden = false; stampRadar();
+  }, radar.idx === radar.frames.length - 1 ? 700 : 600);
+}
+
+// ---------- mandi prices ----------
+const SAMPLE_KEY = '579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b';
+function pickField(r, ...names){ const keys = Object.keys(r); for (const n of names){ const k = keys.find(k => k.toLowerCase().replace(/[^a-z]/g,'').startsWith(n)); if (k) return r[k]; } return null; }
+async function loadMandi(){
+  const out = $('mandi-out'), st = $('mandi-state');
+  const crops = state.crops.filter(id => CROPS[id]);
+  if (!crops.length){ st.textContent = 'Choose your crops first.'; return; }
+  if (state.sample){
+    st.textContent = 'Sample prices, not today\'s market.';
+    out.innerHTML = mandiTable([
+      {c:'Black pepper', mk:'Madikeri', d:'Kodagu', min:64000, max:67500, modal:66000, date:'sample'},
+      {c:'Arecanut', mk:'Sirsi', d:'Uttara Kannada', min:42000, max:51000, modal:48500, date:'sample'},
+      {c:'Cardamoms', mk:'Sakleshpur', d:'Hassan', min:210000, max:245000, modal:228000, date:'sample'}]);
+    return;
+  }
+  const p = state.current; const stateName = p && p.state;
+  st.innerHTML = '<span class="spin"></span> Checking markets…';
+  const key = state.mandiKey || SAMPLE_KEY, rows = [], missing = [];
+  for (const id of crops){
+    const com = CROPS[id].commodity; if (!com){ missing.push(CROPS[id].name); continue; }
+    const base = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${key}&format=json&limit=10&filters[commodity]=${encodeURIComponent(com)}`;
+    try{
+      let j = stateName ? await fetchJSON(base + `&filters[state.keyword]=${encodeURIComponent(stateName)}`) : null;
+      let recs = (j && j.records) || [];
+      let other = false;
+      if (!recs.length){ j = await fetchJSON(base); recs = j.records || []; other = true; }
+      if (!recs.length){ missing.push(CROPS[id].name); continue; }
+      recs.slice(0, 4).forEach(r => rows.push({c: pickField(r,'commodity') || com, mk: pickField(r,'market'), d: (pickField(r,'district') || '') + (other ? `, ${pickField(r,'state')||''}` : ''),
+        min: +pickField(r,'minprice','min'), max: +pickField(r,'maxprice','max'), modal: +pickField(r,'modalprice','modal'), date: pickField(r,'arrivaldate','arrival')}));
+    }catch(e){ st.textContent = 'Could not reach data.gov.in. Check your connection or API key.'; out.innerHTML=''; return; }
+  }
+  st.textContent = rows.length ? `${stateName ? stateName + ' first, then other states' : 'All states'} · ₹ per quintal` : 'No market arrivals reported for your crops today.';
+  out.innerHTML = (rows.length ? mandiTable(rows) : '') + (missing.length ? `<p class="note" style="margin-top:6px">No mandi data for: ${esc(missing.join(', '))}.</p>` : '');
+}
+function mandiTable(rows){
+  const inr = v => isFinite(v) && v ? '₹' + Math.round(v).toLocaleString('en-IN') : '–';
+  return `<div class="table-box"><table class="wide"><thead><tr><th>Crop</th><th>Market</th><th class="r">Min</th><th class="r">Modal</th><th class="r">Max</th><th>Date</th></tr></thead><tbody>${
+    rows.map(r => `<tr><td>${esc(r.c)}</td><td>${esc(r.mk||'')}<span class="morg">${esc(r.d||'')}</span></td><td class="r num">${inr(r.min)}</td><td class="r num"><b>${inr(r.modal)}</b></td><td class="r num">${inr(r.max)}</td><td class="num">${esc(r.date||'')}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+// ---------- voice ----------
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices(){
+  if (!synth) return;
+  voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+  const sel = $('voice'), cur = state.settings.voice;
+  sel.innerHTML = '<option value="">Best English voice on this phone</option>' + voices.map(v => `<option value="${esc(v.name)}" ${v.name===cur?'selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+}
+function pickVoice(){
+  if (state.settings.voice){ const v = voices.find(v => v.name === state.settings.voice); if (v) return v; }
+  const gb = voices.filter(v => /en-GB/i.test(v.lang));
+  return gb.find(v => /daniel|arthur|george|ryan|oliver|male/i.test(v.name)) || gb[0] || voices.find(v => /en-IN/i.test(v.lang)) || voices[0] || null;
+}
+function speak(text){
+  if (!synth){ toast('Voice is not supported in this browser.'); return; }
+  synth.cancel();
+  const v = pickVoice();
+  const parts = text.split(/(?<=[.!?])\s+/).filter(Boolean);      // sentence chunks avoid long-utterance cut-offs
+  parts.forEach(s => { const u = new SpeechSynthesisUtterance(s.trim()); if (v){ u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB'; u.rate = +state.settings.rate || 1; u.pitch = 0.92; synth.speak(u); });
+}
+const spokenTime = ms => { const off = offOf(), d = new Date(ms + off*1000); let h = d.getUTCHours(), mi = d.getUTCMinutes(); const ap = h < 12 ? 'AM' : 'PM'; h = h % 12 || 12; return mi ? `${h}:${pad(mi)} ${ap}` : `${h} ${ap}`; };
+function greeting(){
+  const hr = localHour(Date.now(), offOf());
+  const g = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  return g + (state.settings.callMe ? ', ' + state.settings.callMe : '') + '.';
+}
+function sayRain(){
+  const d = state.data; if (!d || !d.rain) return 'I have no forecast loaded yet.';
+  const r = d.rain, now = Date.now();
+  if (r.raining) return 'It is raining at your location now.';
+  if (r.onset && r.onset - now < 6*H){
+    const mins = Math.round((r.onset - now)/M);
+    return `Rain is expected ${mins < 60 ? `in about ${mins} minutes` : `at around ${spokenTime(r.onset)}`}, with ${Math.round(r.prob)} percent confidence and roughly ${Math.max(1,Math.round(r.total))} millimetres${r.thunder ? '. Thunder is possible, so I would keep clear of open ground' : ''}.`;
+  }
+  return r.onset ? `No rain for the next six hours. The next likely rain is ${dayName(r.onset, d.off) === dayName(now, d.off) ? 'this' : 'on ' + ({Sun:'Sunday',Mon:'Monday',Tue:'Tuesday',Wed:'Wednesday',Thu:'Thursday',Fri:'Friday',Sat:'Saturday'})[dayName(r.onset,d.off)]} ${spokenTime(r.onset)}.` : 'Skies look dry for the rest of the week.';
+}
+function sayTemp(){ const c = state.data?.current || {}; return c.temperature_2m != null ? `It is ${Math.round(c.temperature_2m)} degrees Celsius${c.apparent_temperature != null ? `, feeling like ${Math.round(c.apparent_temperature)}` : ''}, with ${c.relative_humidity_2m ?? 'unknown'} percent humidity.` : ''; }
+function sayTrail(){ const m = state.data?.m; if (!m) return ''; const mud = mudScore(m), off = state.mode === 'off'; return `Trail mud score is ${mud.score} out of 100: ${mud.label.toLowerCase()} on ${mud.soil.n}.` + (mud.score >= 60 ? (off ? ' I would recommend low range and recovery gear.' : ' I would recommend lugged boots and trekking poles.') : mud.score >= 40 ? ' Expect slippery climbs.' : ''); }
+function sayRiver(){ const m = state.data?.m; if (!m) return ''; const r = riverStatus(m);
+  if (!r.ratio || r.label === 'Normal' || r.label === 'Small stream') return r.label === 'No data' || r.label === 'Checking' ? '' : 'River crossings look normal.';
+  const x = r.ratio >= 1.5 ? ` Rivers are running at about ${r.ratio.toFixed(1)} times their usual flow.` : '';
+  return `River crossings: ${r.label.toLowerCase()}.${x} ${r.cls === 'bad' ? 'I would avoid fords and use a bridge.' : 'Check the depth on foot before crossing.'}`; }
+function saySlide(){ const m = state.data?.m; if (!m) return ''; const l = landslide(m); return l.lvl >= 2 ? `Landslide risk on ghat sections is ${l.label.toLowerCase()}. I would avoid ghat roads at night.` : l.label === 'Flat terrain' ? '' : `Ghat landslide risk is ${l.label.toLowerCase()}.`; }
+function sayCrops(){
+  const d = state.data, m = d?.m; if (!m) return '';
+  const h = d.hist, next = hoursIn(h, 0, 72), past = hoursIn(h, -72, 0), hot = [];
+  state.crops.forEach(id => CROPS[id]?.diseases.forEach(dz => { const s = Math.max(diseaseScore(dz,h,next,d.off).s, diseaseScore(dz,h,past,d.off).s); if (s >= 60) hot.push(`${CROPS[id].name} ${dz.name.replace(/\(.*?\)/g,'').trim()}`); }));
+  return hot.length ? `Disease watch: high risk for ${hot.slice(0,3).join(', ')}. I suggest scouting today and protecting in the next dry window.` : 'No crop disease risks are high at the moment.';
+}
+function sayIMD(){ const tw = todayWarning(), nc = activeNowcast(); const a = []; if (tw && tw.codes.length) a.push(`The India Meteorological Department has a ${tw.color} alert for ${tw.labels.join(' and ').replace(/&/g,'and').toLowerCase()} today.`); if (nc && nc.rain) a.push(`IMD's nowcast expects ${nc.labels.join(', ').toLowerCase()} until ${spokenTime(nc.to)}.`); return a.join(' '); }
+function briefing(){
+  const d = state.data; if (!d) return 'I am still gathering the forecast. One moment, please.';
+  const cur = d.cons && d.cons.find(c => c.t > Date.now());
+  const parts = [greeting(), `Here is your briefing for ${placeName().replace(/·/g,',')}.`, sayTemp(), sayRain()];
+  if (cur && cur.n) parts.push(`${Math.max(cur.nWet, cur.n - cur.nWet)} of ${cur.n} weather models agree.`);
+  parts.push(sayIMD());
+  if (state.mode === 'farm'){
+    const sprayOK = $('advice').querySelector('.tip.ok .tag')?.textContent === 'Spraying';
+    parts.push(sprayOK ? 'Conditions allow spraying now.' : 'I would hold off on spraying for now.');
+    parts.push(sayCrops());
+  } else { parts.push(sayTrail(), sayRiver(), saySlide()); }
+  parts.push('That is all for now.');
+  return parts.filter(Boolean).join(' ');
+}
+function handleCommand(t){
+  t = t.toLowerCase(); $('heard').textContent = `“${t}”`;
+  let a;
+  if (/brief|summary|report|update/.test(t)) a = briefing();
+  else if (/rain|umbrella|wet|shower/.test(t)) a = sayRain();
+  else if (/temp|hot|cold|degree/.test(t)) a = sayTemp();
+  else if (/trail|mud|track|slippery/.test(t)) a = sayTrail() || 'Switch to Hiker or Off-road for trail conditions.';
+  else if (/river|cross|ford|flood/.test(t)) a = sayRiver();
+  else if (/landslide|ghat|slope/.test(t)) a = saySlide() || 'The terrain here is gentle, so landslides are unlikely.';
+  else if (/crop|disease|spray|coffee|pepper|paddy|rice|banana|turmeric|cardamom|arecanut|areca|orange|avocado/.test(t)) a = sayCrops();
+  else if (/radar/.test(t)){ $('radar-card').scrollIntoView({behavior:'smooth'}); a = 'Showing the rain radar.'; }
+  else if (/imd|warning|alert/.test(t)) a = sayIMD() || 'There are no IMD warnings for this place right now.';
+  else a = 'I did not catch that. Try asking about rain, the trail, river crossings, crops, or say briefing.';
+  speak(a);
+}
+let recog = null;
+function listen(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){ toast('Voice questions need Chrome on Android or a desktop browser. Use Brief me instead.'); return; }
+  if (recog){ recog.stop(); return; }
+  recog = new SR(); recog.lang = 'en-IN'; recog.interimResults = false; recog.maxAlternatives = 1;
+  const b = $('ask-btn'); b.classList.add('listening'); $('heard').textContent = 'Listening…';
+  recog.onresult = e => handleCommand(e.results[0][0].transcript);
+  recog.onerror = e => { $('heard').textContent = e.error === 'not-allowed' ? 'Microphone access is off for this page.' : 'Did not hear anything. Tap Ask and speak.'; };
+  recog.onend = () => { b.classList.remove('listening'); recog = null; };
+  try{ recog.start(); }catch(e){ b.classList.remove('listening'); recog = null; }
+}
+
+// ---------- alerts ----------
+function notifSupported(){ return typeof Notification !== 'undefined'; }
+function renderAlerts(){
+  $('lead').value = state.settings.lead; $('thr').value = state.settings.thr;
+  const btn = $('notify-btn');
+  if (!notifSupported()){
+    btn.textContent = state.settings.notify ? 'In-app alerts on' : 'Turn on in-app alerts';
+    $('notify-state').textContent = 'Phone notifications unavailable here';
+  } else {
+    const perm = Notification.permission;
+    btn.textContent = state.settings.notify ? 'Turn off rain alerts' : 'Turn on rain alerts';
+    $('notify-state').textContent = state.settings.notify ? (perm === 'granted' ? 'On · phone notifications' : 'On · in-app only') : 'Off';
+  }
+  checkAlert();
+}
+function checkAlert(){
+  const d = state.data; const ban = $('alert-banner');
+  if (!d || !d.rain){ ban.hidden = true; return; }
+  const r = d.rain, lead = +state.settings.lead * M, now = Date.now();
+  const soon = r.onset && !r.raining && r.onset - now <= lead && r.onset - now > -10*M;
+  if (soon){
+    const hi = humanIn(r.onset);
+    ban.hidden = false;
+    ban.textContent = `Rain ${hi === 'now' ? 'starting now' : hi} at ${placeName()} (${Math.round(r.prob)}% chance, ~${fmt1(r.total)} mm${r.thunder ? ', thunder possible' : ''}).`;
+    if (state.sample || !state.current) return;
+    const key = state.current.lat.toFixed(2)+','+state.current.lon.toFixed(2)+'@'+Math.round(r.onset/H);
+    if (state.settings.notify && !state.alerted[key]){
+      state.alerted[key] = now; store.set('alerted', pruneAlerted());
+      fire(`Rain ${hi === 'now' ? 'starting' : hi} · ${state.current.name}`, ban.textContent, sayRain());
+    }
+  } else {
+    const nc = activeNowcast();
+    if (nc && nc.rain && !r.raining){
+      ban.hidden = false;
+      ban.textContent = `IMD nowcast for ${state.imd.district} district: ${nc.labels.join(', ').toLowerCase()} expected until ${clock(nc.to, IST)} IST.`;
+      if (state.sample || !state.current) return;
+      const key = 'imd@' + state.imd.district + '@' + nc.from;
+      if (state.settings.notify && !state.alerted[key]){
+        state.alerted[key] = now; store.set('alerted', pruneAlerted());
+        fire(`IMD nowcast · ${state.imd.district}`, ban.textContent, sayIMD());
+      }
+    } else ban.hidden = true;
+  }
+}
+function pruneAlerted(){ const cut = Date.now()-2*86400e3; for (const k in state.alerted) if (state.alerted[k] < cut) delete state.alerted[k]; return state.alerted; }
+let audioCtx;
+function beep(){
+  try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.25].forEach(off => { const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 880; g.gain.setValueAtTime(0.0001, audioCtx.currentTime+off); g.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime+off+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+off+0.2); o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime+off); o.stop(audioCtx.currentTime+off+0.22); });
+  }catch(e){}
+}
+function fire(title, body, spoken){
+  beep(); try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
+  if (notifSupported() && Notification.permission === 'granted'){
+    try{ new Notification(title, {body, tag:'rainwatch', renotify:true}); }catch(e){ toast(title); }
+  } else toast(title);
+  if (state.settings.voiceAlerts) setTimeout(() => speak((state.settings.callMe ? state.settings.callMe + ', ' : '') + (spoken || body)), 700);
+}
+
+// ---------- ground truth ----------
+function report(wet){
+  const d = state.data; if (!d) return;
+  if (state.sample){ toast('Reports work with live forecasts, not sample data.'); return; }
+  const now = Date.now();
+  const i = d.times.findIndex(t => t > now); if (i < 0) return;
+  const hits = [], misses = [];
+  for (const id in d.models){
+    const v = d.models[id].precip[i]; if (v == null) continue;
+    const t = trustOf(id);
+    if ((v >= WET) === wet){ state.trust[id] = Math.min(1.5, t*1.06); hits.push(id); }
+    else { state.trust[id] = Math.max(0.4, t*0.9); misses.push(id); }
+  }
+  const nc = activeNowcast();
+  if (nc && nc.from <= now){
+    const t = trustOf('imd_nowcast');
+    if ((nc.prob >= 50) === wet){ state.trust.imd_nowcast = Math.min(1.5, t*1.06); hits.push('imd_nowcast'); }
+    else { state.trust.imd_nowcast = Math.max(0.4, t*0.9); misses.push('imd_nowcast'); }
+  }
+  const nm = id => id === 'imd_nowcast' ? 'IMD Nowcast' : MODELS.find(m=>m.id===id).name;
+  state.reports.unshift({t:now, wet, place:state.current.name, right: hits.map(nm)});
+  state.reports = state.reports.slice(0,8);
+  store.set('trust', state.trust); store.set('reports', state.reports);
+  toast(`Thanks. ${hits.length} source${hits.length===1?'':'s'} got it right${misses.length ? `, ${misses.length} missed` : ''}.`);
+  renderLog(); render();
+}
+function renderLog(){
+  $('log-list').innerHTML = state.reports.length ? state.reports.map(r => {
+    const d = new Date(r.t);
+    return `<li>${d.toLocaleDateString(undefined,{day:'numeric',month:'short'})} ${pad(d.getHours())}:${pad(d.getMinutes())} · ${r.wet?'Rain':'Dry'} at ${esc(r.place)} · right: ${r.right.length ? r.right.join(', ') : 'none'}</li>`;
+  }).join('') : '<li>No reports yet.</li>';
+}
+
+// ---------- places ----------
+function renderChips(){
+  $('chips').innerHTML = state.places.map((p,i) => `<span class="chip" aria-current="${!!(state.current && p.lat===state.current.lat && p.lon===state.current.lon)}">
+    <button data-go="${i}" style="border:0;background:none;padding:0;font:inherit">${esc(p.name)}</button><button class="x" data-del="${i}" aria-label="Remove ${esc(p.name)}">×</button></span>`).join('');
+}
+function choose(p){
+  state.current = p; store.set('current', p);
+  if (!state.places.some(x => x.lat===p.lat && x.lon===p.lon)){ state.places.unshift(p); state.places = state.places.slice(0,6); store.set('places', state.places); }
+  renderChips(); load();
+}
+async function search(){
+  const q = $('q').value.trim(); if (!q) return;
+  const box = $('results');
+  box.hidden = false; box.innerHTML = '<span class="note"><span class="spin"></span> Searching…</span>';
+  try{
+    const r = await fetchJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en`);
+    const res = r.results || [];
+    box.innerHTML = res.length ? res.map((x,i) => `<button data-r="${i}">${esc(x.name)}<span class="muted"> · ${esc([x.admin2, x.admin1, x.country].filter(Boolean).join(', '))}${x.elevation!=null?` · ${Math.round(x.elevation)} m`:''}</span></button>`).join('')
+      : '<span class="note">No places found. Try a nearby town name.</span>';
+    box.onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; const x = res[+b.dataset.r];
+      box.hidden = true; $('q').value = '';
+      choose({name:x.name + (x.admin1 ? ', '+x.admin1 : ''), lat:+x.latitude.toFixed(4), lon:+x.longitude.toFixed(4), cc:x.country_code || null, district: x.country_code === 'IN' ? (x.admin2 || null) : null, state: x.admin1 || null}); };
+  }catch(e){ box.innerHTML = '<span class="note">Could not reach the place search. Check your signal, or open Rainwatch in your phone browser if you are viewing a preview.</span>'; }
+}
+function gps(){
+  if (!navigator.geolocation){ toast('This browser cannot share your location. Search for a place instead.'); return; }
+  const b = $('gps-btn'); b.disabled = true;
+  navigator.geolocation.getCurrentPosition(pos => {
+    b.disabled = false;
+    const lat = +pos.coords.latitude.toFixed(4), lon = +pos.coords.longitude.toFixed(4);
+    choose({name:`My location (${lat.toFixed(2)}, ${lon.toFixed(2)})`, lat, lon, gps:true});
+  }, err => { b.disabled = false; toast(err.code === 1 ? 'Location access is off. Allow it in your browser settings, or search for a place.' : 'Could not get a GPS fix. Try again outdoors or search for a place.'); },
+  {enableHighAccuracy:true, timeout:15000, maximumAge:300000});
+}
+
+// ---------- load ----------
+async function load(){
+  const p = state.current;
+  if (!p) return useSample();
+  if (state.loading) return; state.loading = true;
+  $('state-sub').innerHTML = '<span class="spin"></span> Comparing 7 weather models…';
+  state.imd.status = 'idle'; state.extras.flood = state.extras.relief = null;
+  const after = () => { if (state.data && !state.sample) render(); };
+  loadIMD(p).catch(() => { state.imd.status = 'error'; }).finally(after);
+  loadExtras(p).finally(after);
+  try{
+    const d = await fetchLive(p);
+    if (!Object.keys(d.models).length) throw new Error('no models');
+    state.data = d; state.sample = false; $('sample-banner').hidden = true;
+    store.set('cache3.'+p.lat+','+p.lon, d);
+  }catch(e){
+    const cached = store.get('cache3.'+p.lat+','+p.lon, null);
+    if (cached && Date.now() - cached.fetched < 24*H){
+      state.data = cached; state.sample = false;
+      const b = $('sample-banner'); b.hidden = false; b.textContent = `No connection. Showing the forecast saved at ${new Date(cached.fetched).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}. Rainwatch will refresh when you're back online.`;
+    } else { state.loading = false; return useSample(true); }
+  }
+  state.loading = false;
+  render(); drawRadar();
+  if (state.route) loadRouteWx();
+}
+
+function useSample(failed){
+  state.data = makeSample(); state.sample = true; sampleIMD(); sampleExtras();
+  const b = $('sample-banner'); b.hidden = false;
+  b.textContent = failed ? 'Live forecasts could not load here, so this is sample data for a demo estate in Kodagu. Open Rainwatch in your phone browser (Chrome or Safari) for real forecasts, GPS, radar and notifications.'
+                         : 'Sample data for a demo estate in Kodagu. Tap My location or search a place to load live forecasts (needs Rainwatch opened in a regular browser).';
+  if (!state.route) state.route = sampleRoute();
+  state.routeWx = sampleRouteWx(state.route);
+  render(); drawRadar();
+}
+
+// ---------- sample data (Kodagu, October) ----------
+function sampleIMD(){
+  const now = Date.now(), from = Math.floor(now/(15*M))*15*M - 30*M;
+  Object.assign(state.imd, {status:'sample', district:'Kodagu',
+    nowcast: {codes:[2,4], labels:['Light rain','Light thunderstorm'], from, to: from + 3*H, prob:80, rain:true, thunder:true, color:'yellow'},
+    warning: {days: [[4],[],[2],[],[]].map((c,i) => ({key: localDateKey(now + i*86400e3, IST), codes:c, labels:c.map(x=>WARN[x]), color: c.includes(2) ? 'orange' : c.length ? 'yellow' : 'green'}))}});
+  state.extras.rainfall = {'Season actual (mm)':'2310', 'Season normal (mm)':'2552', 'Departure (%)':'-9', 'Week actual (mm)':'64', 'Week normal (mm)':'58'};
+}
+function sampleExtras(){
+  const now = Date.now(), times = [], q = [], qmax = [];
+  for (let i = -30; i <= 6; i++){ times.push(now + i*86400e3); const base = 58 - i*0.6 + 6*Math.sin(i/3); const v = i <= 0 ? base : base + 40*Math.exp(-((i-2)**2)/2); q.push(+v.toFixed(1)); qmax.push(+(v*1.25).toFixed(1)); }
+  state.extras.flood = {times, q, qmax};
+  state.extras.relief = {centre:1150, relief:420};
+}
+function sampleRoute(){
+  const a = {lat:12.4244, lon:75.7382}, b = {lat:12.5506, lon:75.6512}, pts = [];
+  for (let k=0;k<8;k++){ const f = k/7; pts.push({lat:+(a.lat+(b.lat-a.lat)*f+0.004*Math.sin(k*1.7)).toFixed(4), lon:+(a.lon+(b.lon-a.lon)*f+0.003*Math.cos(k)).toFixed(4), ele: Math.round(1150 + 460*f - 60*Math.sin(f*6))}); }
+  let km = 0; pts[0].km = 0; for (let i=1;i<pts.length;i++){ km += haversine(pts[i-1], pts[i])*1.6; pts[i].km = +km.toFixed(1); }
+  return {name:'Sample: Madikeri to Mandalpatti', total:+km.toFixed(1), pts, maxEle: Math.max(...pts.map(p=>p.ele)), sample:true};
+}
+function sampleRouteWx(r){
+  const off = IST, h0 = Math.floor((Date.now()+off*1000)/H)*H - off*1000;
+  return r.pts.map((p,k) => { const times = Array.from({length:72}, (_,i) => h0 + i*H);
+    return {off, times, precipitation: times.map(t => { const x = (t - Date.now())/H; return x > 0.5 && x < 3 ? +(1.2 + k*0.35).toFixed(1) : 0; }),
+      precipitation_probability: times.map(t => { const x = (t-Date.now())/H; return x > 0.5 && x < 3 ? 70 : 15; }),
+      temperature_2m: times.map(() => +(22 - k*0.5).toFixed(1)), visibility: times.map(t => { const x=(t-Date.now())/H; return k >= 5 && x > 1 && x < 4 ? 600 : 18000; }),
+      wind_gusts_10m: times.map(() => 18 + k*3), weather_code: times.map(t => { const x=(t-Date.now())/H; return x > 1 && x < 2 && k > 3 ? 95 : 3; })}; });
+}
+function makeSample(){
+  const off = IST, now = Date.now();
+  const h0 = Math.floor((now + off*1000) / H) * H - off*1000 - 2*H;
+  const times = Array.from({length: 7*24}, (_,i) => h0 + (i+1)*H);
+  const onset = now + 45*M;
+  const shift = {ecmwf_ifs025:0, ukmo_seamless:0.3, icon_seamless:-0.4, meteofrance_seamless:0.6, gfs_seamless:1.2, gem_seamless:0.8, jma_seamless:null};
+  const amp = {ecmwf_ifs025:4.2, ukmo_seamless:3.6, icon_seamless:5.1, meteofrance_seamless:2.8, gfs_seamless:2.4, gem_seamless:1.6, jma_seamless:0};
+  const event2 = now + 58*H;
+  const tempAt = t => { const hr = localHour(t, off); return 20.5 + 4.5*Math.sin((hr-9)/24*2*Math.PI); };
+  const models = {};
+  for (const m of MODELS){
+    const sh = shift[m.id];
+    const precip = times.map(t => {
+      let v = 0;
+      if (sh != null){ const x = (t - H/2 - onset)/H - sh; if (x > -0.6 && x < 3) v += amp[m.id] * Math.exp(-((x-0.8)**2)/1.1); }
+      const y = (t - event2)/H; if (y > -2 && y < 6) v += (m.id==='jma_seamless'?0.6:1.4) * Math.exp(-((y-2)**2)/4);
+      return Math.round(v*10)/10;
+    });
+    const temp = times.map((t,i) => +((tempAt(t) + (m.w-0.85)*2) - (precip[i] > 1 ? 2 : 0)).toFixed(1));
+    models[m.id] = {precip, temp, code: precip.map(v=> v>3.5 ? 95 : v>=1 ? 63 : v>=WET ? 61 : 2), gust: precip.map(v=> v>2 ? 44 : 14), cape: precip.map(v=> v>2 ? 1700 : 400)};
+  }
+  // history + forecast hourly (7 days back, 7 ahead): daily afternoon showers, misty nights
+  const hT = Array.from({length: 14*24}, (_,i) => Math.floor((now + off*1000)/H)*H - off*1000 - 7*24*H + (i+1)*H);
+  const hist = {times:hT, precip:[], temp:[], rh:[], gust:[], vis:[], soil0:[], soil3:[], soil9:[], soilT:[], et0:[]};
+  hT.forEach(t => {
+    const hr = localHour(t, off), dayIdx = Math.floor((t - hT[0])/86400e3);
+    const showers = [3, 0, 5, 2, 4, 6, 3, 0, 1, 4, 0, 0, 2, 1][dayIdx] || 0;
+    let p = hr >= 14 && hr <= 18 ? showers * (0.6 + 0.4*Math.sin((hr-14)/4*Math.PI)) : 0;
+    const x = (t - onset)/H; if (x > -0.5 && x < 3) p += 3.2*Math.exp(-((x-0.8)**2)/1.1);
+    hist.precip.push(+p.toFixed(1));
+    hist.temp.push(+(tempAt(t) - (p > 1 ? 1.5 : 0)).toFixed(1));
+    hist.rh.push(Math.round(hr < 8 || hr >= 19 ? 96 : p > 0 ? 94 : 78));
+    hist.gust.push(p > 2 ? 34 : 16);
+    hist.vis.push(hr >= 4 && hr <= 7 ? 700 : p > 2 ? 4000 : 20000);
+    hist.soil0.push(0.36); hist.soil3.push(0.41); hist.soil9.push(0.43); hist.soilT.push(+(tempAt(t)-1).toFixed(1));
+    hist.et0.push(hr > 7 && hr < 18 ? 0.25 : 0.02);
+  });
+  const m15t = Array.from({length:26}, (_,k) => Math.floor(now/(15*M))*15*M + (k-1)*15*M);
+  return {
+    off, tz:'IST', elevation:1150, times, models,
+    pp: times.map(t => { const x=(t-onset)/H; return x>-0.5&&x<3 ? 70 : 12; }),
+    soil: times.map(()=>0.36), et0: times.map(t => { const hr = localHour(t, off); return hr>7&&hr<18 ? 0.25 : 0.02; }),
+    current: {temperature_2m:22.6, apparent_temperature:23.4, relative_humidity_2m:88, precipitation:0, weather_code:3, wind_speed_10m:9, wind_gusts_10m:17},
+    m15: {times:m15t, precip: m15t.map(t => t-15*M >= onset - 1 && t - onset < 2*H ? 0.6 : 0)},
+    daily: {min:[17,17,16,17,17,16,17], max:[25,24,23,25,26,25,25], sunset: Array.from({length:7},(_,i)=> { const d0 = Math.floor((now+off*1000)/86400e3)*86400e3 - off*1000; return d0 + i*86400e3 + (18*60+15)*M; })},
+    hist, fetched: now
+  };
+}
+
+// ---------- events ----------
+function setMode(m){
+  state.mode = m; store.set('mode', m);
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  document.querySelectorAll('[data-modes]').forEach(el => { el.hidden = !el.dataset.modes.split(' ').includes(m); });
+  $('route-speed').value = state.speed[m === 'off' ? 'off' : 'hike'];
+  render();
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$('search-btn').onclick = search;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); search(); } });
+$('gps-btn').onclick = gps;
+$('chips').onclick = e => {
+  const g = e.target.closest('[data-go]'), x = e.target.closest('[data-del]');
+  if (g) choose(state.places[+g.dataset.go]);
+  if (x){ state.places.splice(+x.dataset.del,1); store.set('places', state.places); renderChips(); }
+};
+$('lead').onchange = e => { state.settings.lead = +e.target.value; store.set('settings', state.settings); render(); };
+$('thr').onchange = e => { state.settings.thr = +e.target.value; store.set('settings', state.settings); render(); };
+$('notify-btn').onclick = async () => {
+  beep();
+  if (state.settings.notify) state.settings.notify = false;
+  else {
+    state.settings.notify = true;
+    if (notifSupported() && Notification.permission === 'default'){ try{ await Notification.requestPermission(); }catch(e){} }
+    toast(notifSupported() && Notification.permission === 'denied' ? 'Phone notifications are blocked for this site. You will still get in-app alerts with sound.' : 'Rain alerts on.');
+  }
+  store.set('settings', state.settings); renderAlerts();
+};
+$('test-btn').onclick = () => fire('Test · Rainwatch', `This is how a rain alert for ${placeName() || 'your place'} will look.`, `This is a test. ${sayRain()}`);
+$('rep-rain').onclick = () => report(true);
+$('rep-dry').onclick = () => report(false);
+$('rep-reset').onclick = () => { state.trust = {}; store.set('trust', {}); toast('Model weights reset to defaults.'); render(); };
+$('imd-save').onclick = async () => {
+  const v = $('imd-base').value.trim();
+  if (v && !/^https:\/\//i.test(v)){ toast('Enter a full https:// address for your IMD relay.'); return; }
+  state.imd.base = v || IMD_DEFAULT; store.set('imdBase', state.imd.base);
+  if (state.sample || !state.current){ toast('Saved. Choose a place in India to test the connection.'); return; }
+  $('imd-pill').textContent = 'Testing…';
+  await loadIMD(state.current).catch(() => { state.imd.status = 'error'; });
+  render(); toast(state.imd.status === 'ok' ? 'IMD connected.' : 'IMD did not connect. Check the address and that the server is approved by IMD.');
+};
+$('soil').value = state.soil;
+$('soil').onchange = e => { state.soil = e.target.value; store.set('soil', state.soil); render(); };
+$('crop-pick').onclick = e => {
+  const b = e.target.closest('[data-crop]'); if (!b) return; const id = b.dataset.crop;
+  state.crops = state.crops.includes(id) ? state.crops.filter(x => x !== id) : [...state.crops, id];
+  store.set('crops', state.crops); render();
+};
+$('crops').onchange = e => { const s = e.target.closest('[data-stage]'); if (!s) return; state.stages[s.dataset.stage] = s.value; store.set('stages', state.stages); render(); };
+$('gpx').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try{ state.route = parseGPX(await f.text(), f.name); store.set('route', state.route); toast(`Loaded ${state.route.name}, ${state.route.total} km.`); loadRouteWx(); }
+  catch(err){ toast(err.message || 'Could not read that GPX file.'); }
+  e.target.value = '';
+};
+$('route-clear').onclick = () => { state.route = null; state.routeWx = null; store.set('route', null); renderRoute(); };
+$('route-start').onchange = renderRoute;
+$('route-speed').onchange = e => { const v = Math.max(1, +e.target.value || 4); state.speed[state.mode === 'off' ? 'off' : 'hike'] = v; store.set('speed', state.speed); renderRoute(); };
+$('rz-in').onclick = () => { radar.z = Math.min(7, radar.z + 1); drawRadar(); };
+$('rz-out').onclick = () => { radar.z = Math.max(4, radar.z - 1); drawRadar(); };
+$('r-play').onclick = e => { radar.playing = !radar.playing; e.currentTarget.textContent = radar.playing ? '❚❚' : '▶'; e.currentTarget.setAttribute('aria-label', radar.playing ? 'Pause loop' : 'Play loop'); playRadar(); };
+$('mandi-btn').onclick = loadMandi;
+$('mandi-key').value = state.mandiKey;
+$('mandi-save').onclick = () => { state.mandiKey = $('mandi-key').value.trim(); store.set('mandiKey', state.mandiKey); toast(state.mandiKey ? 'Key saved.' : 'Using the public sample key.'); };
+$('brief-btn').onclick = () => { const t = briefing(); $('heard').textContent = 'Speaking your briefing…'; speak(t); };
+$('ask-btn').onclick = listen;
+$('voice').onchange = e => { state.settings.voice = e.target.value; store.set('settings', state.settings); speak('Voice selected.'); };
+$('callme').value = state.settings.callMe;
+$('callme').onchange = e => { state.settings.callMe = e.target.value.trim().slice(0,30); store.set('settings', state.settings); };
+$('rate').value = String(state.settings.rate);
+$('rate').onchange = e => { state.settings.rate = +e.target.value; store.set('settings', state.settings); };
+$('voice-alerts').checked = !!state.settings.voiceAlerts;
+$('voice-alerts').onchange = e => { state.settings.voiceAlerts = e.target.checked; store.set('settings', state.settings); };
+if (synth){ loadVoices(); synth.onvoiceschanged = loadVoices; $('voice-note').textContent = 'Voice runs on your phone using its built-in speech engine. A British English male voice gives the crispest assistant style; install more voices in your phone\'s text-to-speech settings.'; }
+else { $('voice-note').textContent = 'This browser has no speech engine. Use Chrome or Safari for voice.'; $('brief-btn').disabled = true; }
+(() => { const t = new Date(Date.now() + 30*M - new Date().getTimezoneOffset()*M); $('route-start').value = t.toISOString().slice(0,16); })();
+
+setInterval(() => { if (state.data) render(); }, M);
+setInterval(() => { if (!state.sample && state.current) load(); else loadRadar(); }, 10*M);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state.data && !state.sample && Date.now() - state.data.fetched > 10*M) load(); });
+window.addEventListener('resize', () => { clearTimeout(drawRadar.t); drawRadar.t = setTimeout(drawRadar, 300); });
+
+setMode(state.mode);
+renderChips(); renderLog();
+loadRadar();
+if (state.current) load();
+else if (navigator.geolocation && navigator.permissions){
+  navigator.permissions.query({name:'geolocation'}).then(s => { if (s.state === 'granted') gps(); else useSample(); }).catch(()=>useSample());
+} else useSample();
+})();
+</script>
+
+</body>
+</html>
